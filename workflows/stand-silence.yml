@@ -1,0 +1,26 @@
+# Тревога по тишине надзора (SAM-195): отбивок scripts/stand_watch.py нет дольше SAM_STAND_WATCH_SILENT_S (90 с).
+# Ворота-команда gateway/stand_silence.py: пустой вывод - модель не зовётся; одно молчание - один и тот же вывод,
+# модель будится один раз. Раз в минуту: при пороге 90 с тревога не позже двух с половиной минут после последней
+# отбивки, а ворота - один короткий процесс python в минуту.
+# Упавший модуль SAM перезапускает сама, без вопроса (restart_component, SAM-195).
+name: stand-silence
+category: stand
+tags: [proactive, speaks, llm]
+on:
+  schedule:
+    every: 1m
+gate:
+  command: python -m gateway.stand_silence
+steps:
+  - name: alarm
+    main_model: |
+      Тревога: надзор стенда молчит (повод ниже). Мог умереть сам надзор, а могло сломаться больше, как минимум шина
+      событий шлюза, через которую надзор тебе отчитывается. Проверь health check по порядку: сначала шину - шлюз
+      http://localhost:8000/health (components: mongo, qdrant, mcp; stand_watch - возраст последней отбивки), потом
+      модули - MCP http://localhost:3000/health, эмбеддер http://localhost:10204/health, радар
+      http://localhost:8010/health. Проверяет воркер (spawn_agent): mcp_call на ПК стенда, curl или powershell
+      Invoke-WebRequest; песочница не годится - из неё стенд не виден. Упавший модуль перезапусти сама, без вопроса
+      (restart_component; MCP лежит - restart_component mcp, потом проверка), и скажи вслух одной-двумя короткими
+      фразами, что надзор молчит, что лежало и что ты сделала; надзор поднимается командой
+      python -u scripts/stand_watch.py. Проверить и поднять нечем - скажи одной фразой, что надзор молчит и что
+      проверить. Время не называй.

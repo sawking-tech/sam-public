@@ -1,0 +1,33 @@
+{
+    "device": "pc",
+    "description": "Пример для Windows: скопируй нужные серверы в local.json",
+    "mcp_port": 3000,
+    "servers": [
+        {
+            "name": "control",
+            "command": "python",
+            "args": [
+                "mcp/windows_control_server.py"
+            ],
+            "description": "Windows: run_command, powershell, show_notification"
+        },
+        {
+            "name": "windows",
+            "command": "uvx",
+            "args": [
+                "windows-mcp"
+            ],
+            "description": "Управление окнами через UIA"
+        },
+        {
+            "name": "playwright",
+            "command": "npx",
+            "args": [
+                "-y",
+                "@playwright/mcp",
+                "--extension"
+            ],
+            "description": "Браузер через расширение Playwright"
+        }
+    ]
+}

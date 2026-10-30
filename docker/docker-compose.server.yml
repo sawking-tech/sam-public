@@ -1,0 +1,97 @@
+# SAM на сервере (Linux)
+# Запуск: docker compose -f docker/docker-compose.server.yml up -d
+#
+# Qwen-Agent запускается ВНУТРИ gateway контейнера (не отдельный сервис)
+# Claude Code CLI — нативно на хосте, монтируется в gateway
+
+services:
+  homeassistant:
+    image: ghcr.io/home-assistant/home-assistant:stable
+    container_name: ha
+    restart: unless-stopped
+    network_mode: host
+    volumes:
+      - ../ha-config:/config
+      - /etc/localtime:/etc/localtime:ro
+    environment:
+      TZ: Europe/Moscow
+    depends_on:
+      - mongodb
+      - qdrant
+
+  gateway:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.gateway
+    container_name: sam-gateway
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    volumes:
+      - ../gateway:/app/gateway
+      - /usr/local/bin/claude:/usr/local/bin/claude:ro   # Claude CLI с хоста
+      - /root/.claude:/root/.claude:ro                    # Claude сессии с хоста
+    environment:
+      DASHSCOPE_API_KEY: ${DASHSCOPE_API_KEY}
+      GEMINI_API_KEY: ${GEMINI_API_KEY}
+      MONGODB_URI: mongodb://mongodb:27017
+      QDRANT_URL: http://qdrant:6333
+      HA_URL: http://localhost:8123
+      WORKPC_MCP_URL: ${WORKPC_MCP_URL:-}
+      PC2_MCP_URL: ${PC2_MCP_URL:-}
+    depends_on:
+      - mongodb
+      - qdrant
+
+  n8n:
+    image: n8nio/n8n:latest
+    container_name: n8n
+    restart: unless-stopped
+    ports:
+      - "5678:5678"
+    volumes:
+      - n8n-data:/home/node/.n8n
+      - ../n8n-workflows:/workflows
+    environment:
+      N8N_HOST: 0.0.0.0
+      N8N_PORT: 5678
+      WEBHOOK_URL: http://localhost:5678/
+      GENERIC_TIMEZONE: Europe/Moscow
+      N8N_BASIC_AUTH_ACTIVE: "true"
+      N8N_BASIC_AUTH_USER: ${N8N_USER:-admin}
+      N8N_BASIC_AUTH_PASSWORD: ${N8N_PASSWORD:-changeme}
+    depends_on:
+      - mongodb
+
+  mongodb:
+    image: mongo:7
+    container_name: mongodb
+    restart: unless-stopped
+    volumes:
+      - mongodb-data:/data/db
+    ports:
+      - "127.0.0.1:27017:27017"   # только эта машина: без пароля, память SAM
+    environment:
+      MONGO_INITDB_DATABASE: sam
+
+  qdrant:
+    image: qdrant/qdrant:latest
+    container_name: qdrant
+    restart: unless-stopped
+    volumes:
+      - qdrant-data:/qdrant/storage
+    ports:
+      - "127.0.0.1:6333:6333"   # только эта машина: без ключа
+
+  frp:
+    image: snowdreamtech/frpc:latest
+    container_name: frp
+    restart: unless-stopped
+    network_mode: host
+    volumes:
+      - ./frp/frpc.toml:/etc/frp/frpc.toml:ro
+
+volumes:
+  mongodb-data:
+  qdrant-data:
+  n8n-data:

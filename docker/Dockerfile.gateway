@@ -1,0 +1,31 @@
+FROM python:3.11-slim
+
+WORKDIR /app
+
+# Системные зависимости + Node.js для MCP серверов (stdio)
+RUN apt-get update && apt-get install -y \
+    curl \
+    git \
+    && curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
+    && apt-get install -y nodejs \
+    && rm -rf /var/lib/apt/lists/*
+
+# Локальные MCP серверы (stdio)
+RUN npm install -g \
+    @modelcontextprotocol/server-filesystem \
+    @modelcontextprotocol/server-ssh
+
+# Python зависимости — отдельным слоем чтобы кэшировался
+COPY gateway/requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Код — последним чтобы не инвалидировать кэш при каждом изменении
+COPY gateway/ ./gateway/
+
+# Healthcheck — start_sam.ps1 и Docker знают когда Gateway готов
+HEALTHCHECK --interval=5s --timeout=3s --start-period=15s --retries=5 \
+    CMD curl -f http://localhost:8000/health || exit 1
+
+CMD ["python", "-m", "uvicorn", "gateway.main:app", \
+     "--host", "0.0.0.0", "--port", "8000", \
+     "--log-level", "info"]

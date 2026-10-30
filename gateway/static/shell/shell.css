@@ -1,0 +1,259 @@
+/* Copied as is from DotNetSolutionKit site/site.css (cc7660d), its frame part (tokens, base, bar, the sheet and the
+   panel: lines 1-257); owner's project, its own licence. Only this header differs; what SAM adds is in sam.css. */
+/* The frame of every page: tokens, base, the bar, the sheet and the panel, the hero.
+   One file so the pages cannot drift apart - that is what happened when each had its own copy. */
+/* ==== TOKENS ==== */
+:root {
+  /* the ladder: a colour and a pixel size per rung, as in docs/visual-metaphor.md */
+  --rung-2: #3d5a80;
+  --rung-4: #5e8ca8;
+  --rung-6: #9fd3c7;
+  --rung-8: #f2c14e;
+  --refuted: #e08d79;   /* the one colour outside the ladder: a verdict that did not hold */
+  /* the status of a roadmap item, from the ladder: done mint, now blue, waiting amber */
+  --done: var(--rung-6);
+  --now: var(--rung-4);
+  --wait: var(--rung-8);
+
+  --ground: #0e1526;
+  --ground-deep: #090e1a;
+  --panel: #141d33;
+  --line: #24314f;
+  --text: #e6ecf5;
+  --muted: #93a2bc;
+  --focus: var(--rung-8);
+  /* the accent as text: amber holds up on a dark ground, but on white it needs to go gold to stay
+     readable - same hue, enough contrast to read at body size */
+  --focus-text: var(--rung-8);
+
+  /* The light palette, named once and assigned below: the page has two themes, and a second copy of
+     these values would drift from the first. Only the assignment repeats, not the colours. */
+  --l-ground: #f4f6fb;
+  --l-ground-deep: #e8ecf6;
+  --l-panel: #ffffff;
+  --l-panel-2: #eef2fa;
+  --l-line: #ccd6e8;
+  --l-text: #14203a;
+  --l-muted: #5a6a8a;
+  --l-focus: var(--rung-8);        /* the same amber in both themes - the accent belongs to the ladder */
+  --l-focus-text: #9a6c0c;         /* gold: the amber of the ladder, deep enough to read on white */
+  --l-sheen-1: #16233f; --l-sheen-2: #24645a; --l-sheen-3: #d9a11f;
+  /* the statuses as text on white: the mint and the amber of the ladder go deep enough to read */
+  --l-done: #1f7a63; --l-now: var(--rung-2); --l-wait: var(--l-focus-text);
+
+  /* the sheen of the wordmark: light letters at night, dark ones by day - on a near-white field the
+     pale gradient was invisible */
+  --sheen-1: #e6ecf5; --sheen-2: #9fd3c7; --sheen-3: #f2c14e;
+
+  --measure: 68ch;
+  --gap: 1.5rem;
+  --radius: 10px;
+
+  /* the sheet-and-panel layout: its own set of names, kept apart from the page palette */
+  --app-bg: var(--ground);
+  --panel-2: #1b2540;
+  --ink: var(--text);
+  --barh: 53px;
+  --panelw: 272px;
+  --maxw: 920px;   /* narrow enough that an open panel still leaves the sheet a margin */
+  --gut: 20px;
+}
+
+/* The theme: "auto" follows the device, "light" and "dark" are the reader's own choice. The
+   attribute is set on <html> before the first paint, so the page never flashes the wrong palette.
+   One block of assignments, used by both the explicit choice and the device's. */
+:root[data-theme="light"] {
+  --ground: var(--l-ground); --ground-deep: var(--l-ground-deep);
+  --panel: var(--l-panel); --panel-2: var(--l-panel-2);
+  --line: var(--l-line); --text: var(--l-text); --muted: var(--l-muted); --focus: var(--l-focus); --focus-text: var(--l-focus-text); --done: var(--l-done); --now: var(--l-now); --wait: var(--l-wait);
+  --sheen-1: var(--l-sheen-1); --sheen-2: var(--l-sheen-2); --sheen-3: var(--l-sheen-3);
+}
+@media (prefers-color-scheme: light) {
+  :root[data-theme="auto"] {
+    --ground: var(--l-ground); --ground-deep: var(--l-ground-deep);
+    --panel: var(--l-panel); --panel-2: var(--l-panel-2);
+    --line: var(--l-line); --text: var(--l-text); --muted: var(--l-muted); --focus: var(--l-focus); --focus-text: var(--l-focus-text); --done: var(--l-done); --now: var(--l-now); --wait: var(--l-wait);
+    --sheen-1: var(--l-sheen-1); --sheen-2: var(--l-sheen-2); --sheen-3: var(--l-sheen-3);
+  }
+}
+
+/* ==== LANGUAGE ==== */
+/* The page carries both languages and shows one. English is what a reader without the attribute
+   gets - a crawler with no scripts, the first paint before the switch runs - and the Russian text
+   is in the document either way. Why it is done here and not by a script: the site is static, so
+   text a script would insert would not exist for anyone who reads the page without running it
+   (panel.js, LANGUAGE). */
+:root:not([data-lang="ru"]) [lang="ru"] { display: none; }
+:root[data-lang="ru"] [lang="en"] { display: none; }
+
+/* ==== BASE ==== */
+* { box-sizing: border-box; }
+/* No clipping here, however tempting: overflow on <html> makes it the scroll container and the
+   sticky panel stops sticking. A page wider than the window is fixed where it is made - the panel
+   hides under the sheet instead of being parked past its edge (panel.js, applyShift). */
+/* The scrollbar is always there, so the width of the window is the same for a long page and a short one,
+   and for a page whose content is still coming: a scrollbar that appears moves the panel and the sheet.
+   Both overflows sit on <html>, which hands them to the window; on <body> overflow-x would make the body
+   a scroll container of its own, and the sticky bar and panel would stop sticking. No smooth scrolling
+   here: a link to a place on the page jumps there (site/jump.js) instead of crawling the page through. */
+html { overflow-x: hidden; overflow-y: scroll; }
+
+body {
+  margin: 0;
+  background: var(--ground);
+  color: var(--text);
+  font: 400 17px/1.6 "IBM Plex Sans", system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* The browser breaks the lines, and left alone it leaves a word hanging at the end of one - the
+   footer read "Code," and then a new line. Headings are balanced across their lines, prose is
+   broken so that no last line is left with a single short word. */
+h1, h2, h3 { font-weight: 600; line-height: 1.2; letter-spacing: -0.01em; margin: 0 0 0.6em;
+             text-wrap: balance; }
+p, li, td, th, figcaption { text-wrap: pretty; }
+h2 { font-size: clamp(1.4rem, 1rem + 1.4vw, 2rem); }
+h3 { font-size: 1.05rem; }
+p { margin: 0 0 1em; max-width: var(--measure); }
+a { color: var(--text); text-decoration-color: var(--line); text-underline-offset: 3px; }
+a:hover { text-decoration-color: var(--focus); }
+:focus-visible { outline: 2px solid var(--focus); outline-offset: 3px; border-radius: 4px; }
+code, .num { font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 0.92em; }
+
+/* The measure of the content and the gutter it keeps from the edge - the padding is what stops
+   the text touching the border when an open panel narrows the sheet. */
+/* The content column is drawn: a rule down each side, running the height of the page. Sections
+   sit one under another, so their sides join into two unbroken lines. */
+.wrap { max-width: var(--maxw); margin: 0 auto; padding: 0 var(--gut);
+        border-inline: 1px solid var(--line); }
+/* Separators run at the width of the content, never across the whole sheet: a full-width rule
+   reaches under the panel standing beside it and cuts the page in two. */
+/* The air between sections belongs inside the column, not around it: the rule down each side is
+   drawn on .wrap, so padding on the section itself would fall outside it and break the line. */
+section { padding-block: 0; }
+section > .wrap { padding-block: clamp(1.6rem, 3.4vw, 2.7rem); }
+section + section > .wrap { border-top: 1px solid var(--line); }
+
+/* ==== TOP BAR ==== */
+/* The bar and the panel's head are one line across the page: same height, same ground, same rule
+   under them. The height belongs to --barh and nothing else may add to it - the padding lives on
+   .bar-inner, so that a stray padding here cannot push the two out of step. */
+.bar { font-size: 0.95rem; }
+.bar__mark { display: inline-flex; align-items: center; gap: 0.5rem; font-weight: 600; text-decoration: none; }
+.bar__mark svg { width: 22px; height: 22px; flex: none; }
+/* The bar is navigation, not a caption: its links carry the text colour and a little weight, so
+   they read as places to go. Muted grey made them look disabled, on the light theme especially. */
+.bar a { text-decoration: none; color: var(--text); font-weight: 500; padding: 0.3rem 0.55rem; border-radius: 6px; }
+.bar a:hover { color: var(--text); background: var(--panel); }
+.bar a[aria-current="page"] { color: var(--text); box-shadow: inset 0 -2px 0 var(--focus); border-radius: 0; }
+.bar__mark, .bar__mark:hover { color: var(--text); background: none; }
+
+/* ==== LAYOUT: the sheet and the panel ========================================================
+   A push panel, by the rules of the site layout spec: it slides out and moves the whole frame -
+   header included - because moving only the middle would let the panel lie over the header, leaving
+   the page both shifted and covered at once. The page yields the panel's width minus the free
+   gutter, never less than zero; on a wide screen it yields nothing, there being nothing to yield.
+
+   Layer order: the sheet sits above the panel, so the panel comes out from under its edge; the bar
+   runs at the sheet's width and sits higher still; the footer is above the panel as well, or the
+   panel would land on top of it.
+
+   #below is the sheet - opaque, above the panel, so a closed panel hides exactly under its edge.
+   #sidebar is the panel: a sticky column the browser keeps in place by itself, with no recomputing
+   on scroll. Wide window (body.wide): the side gutter is wider than the panel, so the panel simply
+   stands in it and the sheet never moves. Narrow: the panel sits under the sheet with a negative
+   margin, taking no space, and opening slides the two apart to meet.
+
+   The panel pushes the content, it never covers it - no scrim, no click trap, closed by the button
+   that opened it. */
+/* Nothing moves while the page is laying itself out. The panel's place comes from storage and is
+   applied by a script, so without this the sheet and the panel slid apart on every refresh - the
+   opening animation played for a state that was never closed. The class comes off after the first
+   frames, once everything stands where it belongs. */
+.preload *, .preload *::before, .preload *::after { transition: none !important; animation: none !important; }
+/* The page is shown once the panel stands where storage says and the fonts are in, so its first frame
+   is its last: no sheet sliding aside, no letters changing size. boot.js caps the wait. */
+.unlaid #main { visibility: hidden; }
+
+#main{position:relative;z-index:10}
+  #cols{display:flex;align-items:flex-start}
+  /* The sheet is the page: capped at --maxw and centred, so the rules down the sides of the content
+     are the edges of the sheet itself. Left to fill the window it grew two blank margins with no
+     edge to them, and the panel's zone showed as a third. */
+  #below{position:relative;z-index:2;width:100%;max-width:var(--maxw);margin:0 auto;min-height:100vh;
+    background:var(--app-bg);
+    transform:translateX(var(--shift,0px));transition:transform .25s}
+  /* The panel is glass: what is behind it shows through, softened. It keeps its place in the layer
+     order - under the sheet, sliding out from its edge - so it is the panel that takes the clicks
+     landing on it. */
+  #sidebar{position:sticky;top:0;height:100vh;width:var(--panelw);flex:none;order:2;z-index:1;
+    display:flex;flex-direction:column;border-left:1px solid var(--line);
+    background:color-mix(in srgb,var(--panel) 72%,transparent);backdrop-filter:blur(16px);
+    margin-left:calc(-1 * var(--panelw));
+    transform:translateX(var(--panel-shift,0px));transition:transform .25s}
+  body.side-left #sidebar{order:0;margin-left:0;margin-right:calc(-1 * var(--panelw));
+    border-left:0;border-right:1px solid var(--line)}
+  body.no-anim #sidebar,body.no-anim #below{transition:none}
+  body.wide #sidebar{margin-left:0;margin-right:0}
+  body.wide.side-left #sidebar{margin-left:var(--gapend,0px);margin-right:0}
+  /* the button lives on the side the panel comes from, so the hand goes where the panel will be */
+  /* the bar is the flex row the ordering depends on: without it `order` does nothing at all */
+  .bar{position:sticky;top:0;z-index:30;min-height:var(--barh);box-sizing:border-box;
+    background:color-mix(in srgb,var(--ground-deep) 82%,transparent);
+    backdrop-filter:blur(10px);border-bottom:1px solid var(--line)}
+  .bar-inner{display:flex;align-items:center;gap:10px;padding-top:9px;padding-bottom:9px;flex-wrap:nowrap}
+  #burger{order:9}
+  body.side-left #burger{order:-1}
+  body.wide #below{flex:0 0 auto;width:var(--bw);max-width:none;margin:0;transform:none}
+  body.wide .wrap{width:var(--maxw);max-width:none;margin-left:var(--cl,0px);margin-right:0}
+  body.wide .bar .wrap,body.wide .doc{padding-inline:var(--gut)}
+  body.wide .ribbon .wrap{margin-left:var(--gutter,0px)}
+  body.wide .bar{width:var(--maxw);margin-left:var(--cl,0px)}
+  body.wide .bar .wrap{width:100%;margin-left:0}
+  body.wide #burger{display:none}
+  .spacer{flex:1}
+  /* the head of the panel: the title takes the room, the two buttons sit against the far edge */
+  .side-head{flex:none;display:flex;align-items:center;gap:6px;padding:10px 12px;
+    min-height:var(--barh);box-sizing:border-box;
+    background:color-mix(in srgb,var(--ground-deep) 82%,transparent);backdrop-filter:blur(12px);
+    border-bottom:1px solid var(--line)}
+  .side-head #side-swap{margin-left:auto}
+  #burger,#side-lang,#side-theme,#side-swap,#side-close{flex:none;width:34px;height:34px;font-size:16px;line-height:1;
+    background:var(--panel);border:1px solid var(--line);color:var(--ink);border-radius:8px;
+    cursor:pointer;font-family:inherit}
+  #burger:hover,#side-lang:hover,#side-theme:hover,#side-swap:hover,#side-close:hover{background:var(--panel-2)}
+  #side-lang,#side-theme,#side-swap,#side-close{width:28px;height:28px;font-size:13px}
+  /* two letters where the others carry one glyph: the box keeps its height and takes the width it needs */
+  #side-lang{width:auto;min-width:28px;padding:0 6px;font-size:11px;font-weight:600;letter-spacing:.03em}
+  .side-head #side-lang{margin-left:auto}
+  body.wide #side-close{display:none}
+  .side-title{flex:1;min-width:0;font-weight:600;font-size:15px;white-space:nowrap;
+    overflow:hidden;text-overflow:ellipsis}
+  /* The bar never wraps. What gives way on a narrow screen is, in order: the word beside the mark -
+     the magnifier still says whose site this is - then the gutter, then the link to the repository,
+     which the footer carries anyway. The links that move around the site itself always stay. */
+  @media (max-width: 560px) {
+    :root{--gut:12px}
+    .bar__mark{font-size:0;gap:0}
+    .bar a[href^="https://github.com"]{display:none}
+    /* then the room around the links, so that four of them in Russian still fit beside the burger;
+       the mark keeps its size */
+    .bar-inner{gap:2px}
+    .bar a:not(.bar__mark){padding:0.3rem 0.35rem;font-size:0.9rem}
+  }
+  @media (max-width: 380px) {
+    .bar a:not(.bar__mark){padding:0.3rem 0.2rem;font-size:0.8rem;white-space:nowrap}
+  }
+  @media (max-width: 340px) {
+    .bar a:not(.bar__mark){padding:0.3rem 0.15rem;font-size:0.74rem}
+  }
+  .side-body{flex:1;min-height:0;overflow-y:auto;padding:10px 12px 16px}
+  .side-body > .side-h:first-child{margin-top:2px}
+  /* The shelf of documents inside the panel. It lives here rather than with the documentation page,
+     because both pages carry the same panel and a second copy of these rules would drift. */
+  .side-body h2 { font-size: 0.8rem; font-weight: 500; color: var(--muted); margin: 1.6rem 0 0.5rem; }
+  .side-body h2:first-of-type { margin-top: 0; }
+  .side-body ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.1rem; }
+  .side-body a { display: block; padding: 0.32rem 0.6rem; border-radius: 6px; text-decoration: none; font-size: 0.95rem; color: var(--muted); }
+  .side-body a:hover { background: var(--panel); color: var(--text); }
+  .side-body a[aria-current="page"] { background: var(--panel); color: var(--text); box-shadow: inset 2px 0 0 var(--focus); }

@@ -1,0 +1,22 @@
+{
+  "_comment": "Цена за 1M токенов. cost_currency: источники, которые сами присылают стоимость вызова в usage.cost, и её валюта (источник без записи считается по ценам). prices: openrouter - USD по каталогу openrouter.ai/api/v1/models на 27 окт 2026; polza - RUB по странице модели; локальные модели бесплатны. Модели без строки считаются без цены.",
+  "cost_currency": {
+    "openrouter": "USD",
+    "polza": "RUB"
+  },
+  "fx_per_usd": {"USD": 1.0, "RUB": 90.0},
+  "prices": {
+    "lmstudio/*": {"input": 0, "output": 0, "currency": "USD"},
+    "openrouter/openai/gpt-6.1-terra": {"input": 1.0, "output": 5.0, "currency": "USD"},
+    "openrouter/moonshotai/kimi-k3.1-pro": {"input": 2.0, "output": 10.0, "currency": "USD"},
+    "openrouter/z-ai/glm-5.3": {"input": 0.07, "output": 1.4, "currency": "USD"},
+    "openrouter/z-ai/glm-5.3-flash": {"input": 0.15, "output": 0.5, "currency": "USD"},
+    "openrouter/deepseek/deepseek-v4-flash": {"input": 0.04, "output": 0.45, "currency": "USD"},
+    "openrouter/anthropic/claude-haiku-5.5": {"input": 0.1, "output": 0.5, "currency": "USD"},
+    "openrouter/google/gemini-3.8-flash": {"input": 0.83, "output": 4.12, "currency": "USD"},
+    "polza/openai/gpt-6.1-terra": {"input": 57.11, "output": 285.56, "cached_input": 2.856, "currency": "RUB"},
+    "polza/deepseek/deepseek-v4-flash": {"input": 5.41, "output": 10.81, "currency": "RUB"},
+    "polza/anthropic/claude-haiku-5.5": {"input": 11.66, "output": 58.32, "currency": "RUB"},
+    "polza/z-ai/glm-5.3-flash": {"input": 4.76, "output": 8.81, "cached_input": 1.919, "currency": "RUB"}
+  }
+}

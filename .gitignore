@@ -1,0 +1,59 @@
+.env
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+dist/
+build/
+.venv/
+venv/
+node_modules/
+.idea/
+.DS_Store
+.claude/session-context/
+.claude/settings.local.json
+
+# Runtime / logs
+*.log
+.sam_pids
+logs/
+
+# Tool configs которые не должны коммититься
+.opencode.json
+.qwen/settings.json.orig
+
+# Тестовые файлы во время разработки
+test.txt
+test_req.json
+
+
+# Локальные: токены и личные настройки (9 окт 2026)
+.mcp.json
+.claude/settings.local.json
+
+# Пустой файл без ссылок из кода (grep 9 окт 2026): снят с индекса, на диске оставлен (SAM-64)
+data/sam.sqlite
+
+# Песочница: папки задач с кодом и результатами (SAM-83, ADR-016)
+data/sandbox/
+
+# Голосовой слой: профили голосов, калибровка, шина и записи фраз (SAM-54, SAM-30)
+data/voice/
+
+# Набор прогона голосового хода из истории: реплики домашних (SAM-81)
+data/evals/
+.sam_stop
+# Радар присутствия (SAM-105): карта посещений и подписи зон живут на машине, не в репозитории
+data/presence_*.json
+data/disk_snapshots.jsonl
+data/presence_tracks/
+
+# Личное и состояние машины целиком (правило «Код» в CLAUDE.md): разметка квартиры, быт, проходки, данные прогонов.
+# Отслеживаемых файлов в data/ нет; частные правила выше оставлены как история
+data/
+
+# Скриншоты и логи Playwright MCP, замок кронов Claude Code
+.playwright-mcp/
+.claude/scheduled_tasks.lock

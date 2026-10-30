@@ -1,0 +1,96 @@
+{
+  "name": "SAM: Пассивное слушание (каждый час)",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 * * * *"
+            }
+          ]
+        }
+      },
+      "id": "a7b8c9d0-0007-0007-0007-000000000001",
+      "name": "Каждый час",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.1,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://gateway:8000/v1/chat/completions",
+        "sendBody": true,
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {"name": "X-Initiative", "value": "true"}
+          ]
+        },
+        "specifyBody": "json",
+        "jsonBody": "{\"messages\": [{\"role\": \"user\", \"content\": \"[PASSIVE_CHECK] Проанализируй текущий контекст дома. Если есть что-то важное для сообщения — начни ответ с [SPEAK]. Если всё спокойно — ответь [SILENT].\"}]}",
+        "options": {}
+      },
+      "id": "a7b8c9d0-0007-0007-0007-000000000002",
+      "name": "SAM Gateway",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {"caseSensitive": false},
+          "conditions": [
+            {
+              "leftValue": "={{ $json.choices[0].message.content }}",
+              "rightValue": "[SPEAK]",
+              "operator": {"type": "string", "operation": "contains"}
+            }
+          ]
+        }
+      },
+      "id": "a7b8c9d0-0007-0007-0007-000000000003",
+      "name": "Есть что сказать?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.HA_URL }}/api/services/tts/speak",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\"entity_id\": \"media_player.sam_tts\", \"message\": \"{{ $('SAM Gateway').item.json.choices[0].message.content.replace('[SPEAK]', '').trim() }}\"}",
+        "options": {}
+      },
+      "id": "a7b8c9d0-0007-0007-0007-000000000004",
+      "name": "HA TTS",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [900, 200]
+    }
+  ],
+  "connections": {
+    "Каждый час": {
+      "main": [[{"node": "SAM Gateway", "type": "main", "index": 0}]]
+    },
+    "SAM Gateway": {
+      "main": [[{"node": "Есть что сказать?", "type": "main", "index": 0}]]
+    },
+    "Есть что сказать?": {
+      "main": [
+        [{"node": "HA TTS", "type": "main", "index": 0}],
+        []
+      ]
+    }
+  },
+  "active": false,
+  "settings": {"executionOrder": "v1"},
+  "id": "passive-listening"
+}

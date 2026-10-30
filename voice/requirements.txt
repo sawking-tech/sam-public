@@ -1,0 +1,31 @@
+# ─── SAM Voice Client
+# pip install -r voice/requirements.txt
+
+# Аудио
+sounddevice==0.4.6
+numpy==1.26.4
+pygame==2.5.2
+
+# Wake word (локально, tiny)
+faster-whisper==1.0.3
+
+# Wyoming TTS (протокол — только asyncio + встроенный json, доп. пакет не нужен)
+
+# Шумоподавление
+noisereduce==3.0.2
+
+# Time-stretch (Rubber Band) + pitch shift для voice_speed/voice_pitch
+pedalboard>=0.9.0
+
+# Fallback: числа словами в TTS (LLM просим первой, это страховка)
+num2words>=0.5.13
+
+# self_config с gateway
+aiohttp>=3.9.0
+
+# SAM Gateway
+httpx==0.27.0
+# Голосовой слой (voice/layer, SAM-54): эхоподавление WebRTC, понижение частоты, опознание голоса
+livekit==1.1.20
+scipy==1.17.1
+speechbrain==1.1.1

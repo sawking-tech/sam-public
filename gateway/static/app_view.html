@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>__TITLE__ - SAM</title>
+<!-- Живое приложение в каркасе SAM: страница приложения - во фрейме с CSP sandbox, вокруг - полоса и панели.
+     __TITLE__, __SHELL_ATTRS__, __INFO__ и __SRC__ шлюз подставляет при отдаче (gateway/app_view.py). -->
+<link rel="preload" href="/static/shell/fonts/onest-cyrillic.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="/static/shell/shell.css">
+<link rel="stylesheet" href="/static/shell/sam.css">
+<script src="/shell/config.js"></script>
+<script src="/static/shell/boot.js"></script>
+<script src="/static/shell/shell.js" defer data-page="__SLUG__" data-fill="1" data-maxw="4000" __SHELL_ATTRS__></script>
+<style>
+  .view { position: relative; flex: 1; min-height: 0; display: flex; }
+  .view iframe { flex: 1; width: 100%; border: 0; background: var(--panel); }   /* без белой вспышки в тёмной теме */
+  html:not(.sam-fill) .view { height: 100dvh; }        /* каркас выключен: страница на всё окно */
+  .gear { position: absolute; top: 10px; right: 10px; width: 40px; height: 40px; display: grid; place-items: center;
+          padding: 0; border: 1px solid var(--line); border-radius: 10px; cursor: pointer; color: var(--text);
+          background: color-mix(in srgb, var(--panel) 86%, transparent); backdrop-filter: blur(6px); }
+  .gear:hover { border-color: var(--focus); }
+  .gear svg { width: 18px; height: 18px; }
+  .about { display: grid; gap: 1rem; font-size: 0.95rem; }
+  .about p { margin: 0; }
+  .about .ask { padding-left: 0.8rem; border-left: 2px solid var(--focus); }
+  .about dl { display: grid; grid-template-columns: auto 1fr; gap: 0.3rem 0.8rem; margin: 0; }
+  .about dt { color: var(--muted); }
+  .about dd { margin: 0; overflow-wrap: anywhere; }
+</style>
+</head>
+<body>
+<script type="application/json" id="app-info">__INFO__</script>
+<div class="view">
+  <iframe id="app" src="__SRC__" sandbox="allow-scripts" title="__TITLE__"></iframe>
+  <button class="gear" id="gear" type="button" aria-label="О приложении" title="О приложении">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>
+  </button>
+</div>
+<script>
+/* Описание приложения - в панели каркаса; настройки, закрепление и удаление - на странице приложений
+   (gateway/static/apps_panel.html), куда ведёт ссылка. Вызовы панелей от самого приложения - SAMShell.connectApp. */
+addEventListener("DOMContentLoaded", () => {
+  const info = JSON.parse(document.getElementById("app-info").textContent);
+  const el = (tag, attrs, ...kids) => { const n = document.createElement(tag);
+    for (const [k, v] of Object.entries(attrs || {})) n.setAttribute(k, v); n.append(...kids); return n; };
+  const apps = (window.SAM_SHELL && SAM_SHELL.nav || []).find((i) => i.key === "apps");
+  const manage = apps ? SAMShell.navUrl(apps) : null;
+  const about = () => el("div", { class: "about" },
+    ...(info.description ? [el("p", {}, info.description)] : []),
+    ...(info.request ? [el("p", { class: "ask" }, `«${info.request}»`)] : []),
+    el("dl", {}, ...(info.created ? [el("dt", {}, "Сделано"), el("dd", {}, info.created)] : []),
+       el("dt", {}, "Slug"), el("dd", {}, info.slug)),
+    ...(manage ? [el("p", {}, el("a", { href: manage }, "Настройки, закрепление и удаление - в приложениях"))] : []));
+  const gear = document.getElementById("gear");
+  gear.hidden = !SAMShell.enabled;
+  gear.addEventListener("click", () => SAMShell.openPanel({ title: info.name, node: about() }));
+  SAMShell.setDefaultPanel(info.name, about());
+  SAMShell.connectApp(document.getElementById("app"), info.slug);
+});
+</script>
+</body>
+</html>

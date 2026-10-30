@@ -1,0 +1,367 @@
+/* Что SAM добавляет к каркасу DotNetSolutionKit (shell.css - копия как есть): палитра «ночной дом», шрифт, подача
+   прибора наблюдения, движение, переопределения страницы и вкладки панели. Раскладка - образца, цвета и подача -
+   SAM (docs/features/shell-layout.md). */
+/* Шрифты лежат рядом (fonts/, OFL): страница не ждёт CDN и работает без внешней сети. Onest - переменный, один файл
+   на все начертания; JetBrains Mono - только числа и код. Подмножества латиница и кириллица, как у Google Fonts. */
+@font-face { font-family: "Onest"; font-style: normal; font-weight: 300 700; font-display: swap;
+  src: url("fonts/onest-cyrillic.woff2") format("woff2"); unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116; }
+@font-face { font-family: "Onest"; font-style: normal; font-weight: 300 700; font-display: swap;
+  src: url("fonts/onest-latin.woff2") format("woff2");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329,
+    U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+@font-face { font-family: "JetBrains Mono"; font-style: normal; font-weight: 400 500; font-display: swap;
+  src: url("fonts/jetbrainsmono-cyrillic.woff2") format("woff2"); unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116; }
+@font-face { font-family: "JetBrains Mono"; font-style: normal; font-weight: 400 500; font-display: swap;
+  src: url("fonts/jetbrainsmono-latin.woff2") format("woff2");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329,
+    U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+
+/* ==== ПАЛИТРА «НОЧНОЙ ДОМ» ====================================================================================
+   Токены сцены радара (radar/static/presence.html): SAM - внимание, которое не спит, дом ночью. Своих цветов у
+   страниц нет, только эти. Токены каркаса (shell.css) перекрыты ими, сама копия образца не тронута. */
+:root {
+  --r-ink: #04060b;          /* фон: ночь */
+  --deck: #0a1224;           /* поверхности: колонка, панель, карточки */
+  --wire: #2c4170;           /* все линии и границы */
+  --haze: #7f93bd;           /* вторичный текст, служебное */
+  --r-text: #e8eefc;         /* текст */
+  --amber: #ffc66d;          /* свои: человек в разговоре, фокус */
+  --ice: #8ad4ff;            /* SAM, «сейчас», живая связь, ход идёт */
+  --lilac: #d49bff;          /* голос и мысль SAM (на радаре - --pet) */
+  --alarm: #ff5b6e;          /* ошибка, обрыв, STOP */
+  /* свечение - огни в окнах: только у живых точек (связь, «SAM думает», точка плитки, голос) */
+  --glow: 0 0 8px;
+  --grid-line: color-mix(in srgb, var(--wire) 30%, transparent);
+
+  --ground: var(--r-ink); --ground-deep: var(--r-ink);
+  --panel: var(--deck); --panel-2: color-mix(in srgb, var(--deck) 70%, var(--wire));
+  --line: var(--wire); --text: var(--r-text); --muted: var(--haze);
+  --field-line: color-mix(in srgb, var(--haze) 80%, var(--ground));   /* граница поля и кнопки: 3:1 к фону, линии ленты тише */
+  --focus: var(--amber); --focus-text: var(--amber);
+  --done: var(--ice); --now: var(--ice); --wait: var(--amber); --refuted: var(--alarm);
+  --app-bg: var(--ground); --ink: var(--text);
+  --sheen-1: var(--r-text); --sheen-2: var(--ice); --sheen-3: var(--amber);
+  --edge-glow: inset 0 -1px 0 color-mix(in srgb, var(--ice) 25%, transparent);
+  --radius-sam: 4px;         /* прибор: углы почти острые; круг - только у живых точек */
+
+  /* движение: длительности и кривые одни на все страницы */
+  --dur-fast: 150ms; --dur-base: 200ms; --dur-panel: 300ms; --dur-panel-out: 200ms;
+  --ease-out: cubic-bezier(0.2, 0.8, 0.2, 1); --ease-spring: cubic-bezier(0.32, 0.72, 0, 1);
+
+  --font-sam: "Onest", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-num: "JetBrains Mono", ui-monospace, monospace;      /* только числа и код */
+}
+/* «Дом днём»: светлая синеватая бумага, линии и текст - чернила от --wire и ночи, акценты того же тона, темнее до
+   4.5:1 на бумаге (OKLCH: тот же оттенок, L 0.52-0.55; проверка - tests/test_shell.py). Свечения нет - кольцо. */
+:root[data-theme="light"] {
+  --r-ink: #eef2f9; --deck: #fbfcfe; --r-text: #0a1224;
+  --wire: color-mix(in srgb, #2c4170 60%, #fbfcfe); --haze: color-mix(in srgb, #2c4170 85%, #fbfcfe);
+  --amber: #8f6200; --ice: #247198; --lilac: #8c54b2; --alarm: #cb2545;
+  --glow: 0 0 0 2px; --grid-line: color-mix(in srgb, var(--wire) 9%, transparent);   /* днём клетка бледнее: на светлом линия читается сильнее */
+  --panel-2: color-mix(in srgb, var(--deck) 94%, #2c4170);
+  --edge-glow: inset 0 -1px 0 var(--wire);
+}
+@media (prefers-color-scheme: light) {
+  :root[data-theme="auto"] {
+    --r-ink: #eef2f9; --deck: #fbfcfe; --r-text: #0a1224;
+    --wire: color-mix(in srgb, #2c4170 60%, #fbfcfe); --haze: color-mix(in srgb, #2c4170 85%, #fbfcfe);
+    --amber: #8f6200; --ice: #247198; --lilac: #8c54b2; --alarm: #cb2545;
+    --glow: 0 0 0 2px; --grid-line: color-mix(in srgb, var(--wire) 9%, transparent);   /* днём клетка бледнее: на светлом линия читается сильнее */
+    --panel-2: color-mix(in srgb, var(--deck) 94%, #2c4170);
+    --edge-glow: inset 0 -1px 0 var(--wire);
+  }
+}
+
+/* Колонка шире образца (920): лента монитора с телеметрией времени слева; длину строки реплики (80 знаков)
+   ограничивает сама реплика. 1120 на 1440 оставляет колонке поле и при открытой панели (сдвиг 112 px) */
+:root { --maxw: 1120px; }
+@media (min-width: 1600px) { :root { --maxw: 1200px; } }
+
+/* рамка строится скриптом после разбора страницы: до неё контент страницы не показывается, как и сама рамка */
+.unlaid body > :not(#main) { visibility: hidden; }
+
+/* шрифт SAM на всех страницах; полоса и панель одинаковы, даже если страница задала body свой */
+body { font-family: var(--font-sam); }
+.bar, #sidebar { font: 400 15px/1.5 var(--font-sam); color: var(--text); }
+.bar__mark, .bar__mark:hover { color: var(--text); }
+/* знак остаётся, когда узкий экран прячет слово рядом с ним (shell.css: .bar__mark font-size 0); светится, как огонь */
+.sam-mark { font-size: 18px; line-height: 1; color: var(--amber); text-shadow: var(--glow) var(--amber); }
+.sam-num { font-family: var(--font-num); font-variant-numeric: tabular-nums; }
+
+/* прибор: полоса - ночь со стеклом, нижний край - линия --wire, по центру светится ice; пункты - текст без плашек,
+   выбранный подчёркнут ice */
+.bar { background: color-mix(in srgb, var(--r-ink) 78%, transparent); backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--wire); box-shadow: none; }
+.bar::before { content: ""; position: absolute; left: 10%; right: 10%; bottom: -1px; height: 1px; pointer-events: none;
+  background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--ice) 70%, transparent), transparent); }
+.side-head { background: color-mix(in srgb, var(--r-ink) 78%, transparent); border-bottom-color: var(--wire); }
+.bar a:not(.bar__mark) { color: var(--muted); font-weight: 500; transition: color var(--dur-fast) var(--ease-out); }
+.bar a:not(.bar__mark):hover { background: none; color: var(--text); }
+.bar a[aria-current="page"] { color: var(--text); box-shadow: inset 0 -2px 0 var(--ice); }
+#sidebar { box-shadow: inset 1px 0 0 color-mix(in srgb, var(--ice) 18%, transparent); }
+#burger, #side-lang, #side-theme, #side-swap, #side-close, #side-back, #bar-theme { border-radius: var(--radius-sam); }
+/* координатная сетка, как у сцены радара: фон того, что прокручивается (класс sam-grid), едет вместе с контентом -
+   неподвижная клетка под движущимся текстом читается как помеха; на карточках её нет */
+.sam-grid {
+  background-image: linear-gradient(var(--grid-line) 1px, transparent 1px),
+                    linear-gradient(90deg, var(--grid-line) 1px, transparent 1px);
+  background-size: 24px 24px;
+  background-attachment: local;
+}
+
+#side-back { flex: none; width: 28px; height: 28px; font-size: 13px; line-height: 1; margin-left: 4px;
+  background: var(--panel); border: 1px solid var(--line); color: var(--ink);
+  cursor: pointer; font-family: inherit; }
+#side-back:hover { background: var(--panel-2); }
+#side-back[hidden] { display: none; }
+/* на узком экране панель закрывает её своя кнопка (#side-close), вторая не нужна */
+body:not(.wide) #side-back { display: none; }
+
+/* Широкое окно: контент держит ту же колонку, что полоса (--maxw с отступом --cl). Без этого он занимал весь лист с
+   полем, и лента монитора на 1920 была 1518 px вместо 1200, а при правой панели заходила под неё (shell.css - копия
+   DotNetSolutionKit, правка - здесь). .wrap внутри контента второй раз не сдвигается */
+body.wide #sam-content { width: var(--maxw); max-width: none; margin-left: var(--cl, 0px); margin-right: 0; box-sizing: border-box; }
+body.wide #sam-content .wrap { width: auto; margin-left: 0; }
+/* panel.js округляет ширину листа и дальнее поле до ближайшего: при левой панели их сумма выходит за окно на пиксель
+   и даёт горизонтальную прокрутку (1920 px); вбок страница не прокручивается */
+#main { overflow-x: clip; }
+
+/* переопределения страницы */
+.sam-nobar .bar { display: none; }
+.sam-fill { overflow: hidden; }          /* страница прокручивается внутри себя, у окна полосы прокрутки нет */
+.sam-fill #sam-content { height: calc(100dvh - var(--barh)); display: flex; flex-direction: column;
+  overflow: hidden; }
+.sam-fill.sam-nobar #sam-content { height: 100dvh; }
+.sam-fill #below { min-height: 0; }
+/* Приложение на ПК: открытая панель встаёт рядом, лист сужается на её ширину и стоит на месте. Сдвиг листа образца
+   уносил край приложения за окно: у страницы во всё окно поля под панель нет. Узкий экран - панель поверх (ниже). */
+@media (min-width: 901px) {
+  .sam-fill body.nav-open:not(.wide) #below { transform: none; max-width: none; margin: 0;
+    width: calc(100% - var(--panelw)); }
+  .sam-fill body.nav-open:not(.wide) #sidebar { margin-left: 0; margin-right: 0; }
+}
+
+/* содержимое панели от приложения - его фрейм на всю панель */
+.side-body:has(> .sam-panel-frame) { padding: 0; overflow: hidden; }
+.sam-panel-frame { display: block; width: 100%; height: 100%; border: 0; background: var(--panel); }
+
+/* полоса (docs/features/shell-layout.md): навигация слева, статус страницы по центру, индикаторы и кнопки справа */
+.sam-nav-bar { display: flex; align-items: center; gap: 2px; flex: none; }
+.sam-status { min-width: 0; text-align: center; color: var(--muted); font-size: 13px; white-space: nowrap;
+  overflow: hidden; text-overflow: ellipsis; }
+/* статус страницы из нескольких частей (флекс): блок не шире полосы, длинная часть кончается многоточием, а не
+   упирается в индикаторы справа */
+.sam-status > * { max-width: 100%; }
+.sam-status > * > * { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sam-tools { display: flex; align-items: center; gap: 8px; flex: none; font-size: 13px; color: var(--muted); }
+#bar-theme { flex: none; width: 34px; height: 34px; font-size: 16px; line-height: 1; background: var(--panel);
+  border: 1px solid var(--line); color: var(--ink); cursor: pointer; font-family: inherit; }
+#bar-theme:hover { background: var(--panel-2); }
+@media (max-width: 760px) {
+  .sam-status { display: none; }          /* на узком экране статус уступает место навигации */
+  .sam-tools { gap: 4px; }
+  .bar-inner > .sam-tools { margin-left: auto; }
+}
+@media (max-width: 560px) {
+  #bar-theme { display: none; }           /* тема - кнопкой в шапке панели, полоса узкая */
+}
+
+/* вкладки панели: подчёркивание переезжает к выбранной (transform) */
+.sam-tabbed { display: grid; gap: 10px; }
+.sam-tabs { position: relative; display: flex; gap: 2px; border-bottom: 1px solid var(--line); overflow-x: auto;
+  scrollbar-width: none; }
+.sam-tab { flex: none; padding: 0.35rem 0.6rem 0.5rem; border: 0; background: none; color: var(--muted); font: inherit;
+  font-size: 15px; cursor: pointer; transition: color var(--dur-fast) var(--ease-out); }
+.sam-tab:hover, .sam-tab[aria-selected="true"] { color: var(--text); }
+.sam-tab-line { position: absolute; left: 0; bottom: -1px; width: 1px; height: 2px; background: var(--focus);
+  transform-origin: 0 0; transition: transform var(--dur-panel) var(--ease-spring); }
+
+/* ==== ДВИЖЕНИЕ =================================================================================================
+   Только transform и opacity, и только в ответ на событие или действие. */
+/* панель выезжает пружиной, закрывается быстрее (у перехода - свойства того состояния, в которое идём) */
+#sidebar, #below { transition-duration: var(--dur-panel-out); transition-timing-function: var(--ease-out); }
+body.nav-open #sidebar, body.nav-open #below { transition-duration: var(--dur-panel);
+  transition-timing-function: var(--ease-spring); }
+/* кнопки: отклик на нажатие и наведение */
+button { transition: transform 100ms var(--ease-out), background-color var(--dur-fast) var(--ease-out),
+  border-color var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out); }
+button:active:not(:disabled) { transform: scale(0.96); }
+/* смена темы: все зоны перекрашиваются в одном кадре - на время переключения переходы выключены (класс от shell.js);
+   свои переходы элементов разной длины иначе дают волну */
+.sam-theme-switch *, .sam-theme-switch *::before, .sam-theme-switch *::after { transition: none !important; }
+
+/* живая точка: связь, «SAM думает», точка плитки; светится цветом смысла, на связи - мягкое кольцо раз в 2 с */
+.sam-live { position: relative; display: inline-block; width: 8px; height: 8px; border-radius: 999px;
+  background: var(--alarm); color: var(--alarm); box-shadow: var(--glow) currentColor;
+  transition: background-color var(--dur-base) linear, color var(--dur-base) linear; }
+.sam-live.on { background: var(--ice); color: var(--ice); }
+.sam-live.on::after { content: ""; position: absolute; inset: -4px; border-radius: 999px;
+  border: 1px solid currentColor; opacity: 0; animation: sam-ring 2s var(--ease-out) infinite; }
+@keyframes sam-ring { 0% { transform: scale(0.5); opacity: 0.8; } 70%, 100% { transform: scale(1.6); opacity: 0; } }
+
+/* «SAM думает»: скан-луч цвета ice под полосой, пока идёт ход (SAMShell.setBusy) */
+.bar::after { content: ""; position: absolute; left: 0; right: 0; bottom: -1px; height: 2px; pointer-events: none;
+  background: linear-gradient(90deg, transparent, var(--ice), transparent); background-size: 40% 100%;
+  background-repeat: no-repeat; opacity: 0; transform: translateX(-60%); }
+.sam-busy .bar::after { opacity: 1; animation: sam-scan 1.6s linear infinite; box-shadow: var(--glow) var(--ice); }
+@keyframes sam-scan { from { transform: translateX(-60%); } to { transform: translateX(160%); } }
+
+/* голос: эквалайзер lilac, пока SAM слушает или говорит (SAMShell.setVoice) */
+.sam-eq { display: none; align-items: flex-end; gap: 2px; height: 14px; color: var(--lilac); }
+.sam-voice .sam-eq { display: inline-flex; }
+.sam-eq i { width: 3px; height: 100%; background: currentColor; border-radius: 1px; transform-origin: bottom;
+  box-shadow: var(--glow) currentColor; animation: sam-eq 0.9s var(--ease-out) infinite alternate; }
+.sam-eq i:nth-child(2) { animation-delay: -0.3s; } .sam-eq i:nth-child(3) { animation-delay: -0.6s; }
+.sam-eq i:nth-child(4) { animation-delay: -0.15s; }
+@keyframes sam-eq { from { transform: scaleY(0.25); } to { transform: scaleY(1); } }
+
+/* счётчик событий: мигает ice при приходе */
+.sam-blink { animation: sam-blink 300ms var(--ease-out); }
+@keyframes sam-blink { from { color: var(--ice); text-shadow: var(--glow) var(--ice); } to { color: inherit; } }
+
+/* появление нового события снизу; пачка - лесенкой (задержку ставит страница) */
+.sam-in { animation: sam-in var(--dur-base) var(--ease-out) both; }
+@keyframes sam-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+
+/* скелетон подгрузки: строки с шиммером */
+.sam-skel { display: grid; gap: 8px; padding: 8px 0; }
+.sam-skel i { position: relative; display: block; height: 12px; border-radius: 2px; overflow: hidden;
+  background: color-mix(in srgb, var(--wire) 45%, transparent); }
+.sam-skel i:nth-child(2) { width: 78%; } .sam-skel i:nth-child(3) { width: 56%; }
+.sam-skel i::after { content: ""; position: absolute; inset: 0;
+  background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--ice) 18%, transparent), transparent);
+  transform: translateX(-100%); animation: sam-shimmer 1.2s linear infinite; }
+@keyframes sam-shimmer { to { transform: translateX(100%); } }
+
+@media (prefers-reduced-motion: reduce) {
+  /* всё движение выключено; смена цвета индикатора связи остаётся */
+  .sam-in, .sam-blink, .sam-eq i, .sam-skel i::after, .sam-busy .bar::after, .sam-live.on::after { animation: none; }
+  #sidebar, #below, .sam-tab-line, button { transition: none; }
+  button:active:not(:disabled) { transform: none; }
+}
+
+/* ==== УЗКИЙ ЭКРАН: ПАНЕЛЬ ПОВЕРХ ================================================================================
+   На узком экране механика образца сдвигает лист на ширину панели, и страница уезжает за край (с панелью слева -
+   вправо). Здесь панель ложится поверх листа со своей стороны, лист стоит на месте (docs/features/shell-layout.md). */
+@media (max-width: 900px) {
+  #below { transform: none !important; }
+  #sidebar { position: fixed; top: 0; right: 0; z-index: 40; margin: 0 !important; height: 100dvh;
+    width: min(var(--panelw), 88vw); transform: translateX(105%) !important;
+    background: var(--panel); box-shadow: -1px 0 0 var(--line); }
+  body.side-left #sidebar { right: auto; left: 0; transform: translateX(-105%) !important; box-shadow: 1px 0 0 var(--line); }
+  body.nav-open #sidebar, body.side-left.nav-open #sidebar { transform: none !important; }
+}
+
+/* ==== ФОРМЫ КАРКАСА ============================================================================================
+   Поля, переключатели, ползунки и кнопки - в палитре «ночной дом» на всех страницах SAM (класс sam-form): видимая
+   подпись, ключ мелко рядом, кольцо фокуса, цель 44 px на сенсорном экране. */
+.sam-form { display: grid; gap: 14px; font-size: 13px; }
+.sam-field { display: grid; gap: 6px; }
+.sam-field > .sam-label { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; color: var(--text); }
+.sam-key { color: var(--muted); font: 400 11px/1.3 var(--font-num); }
+.sam-form input[type="text"], .sam-form input[type="number"], .sam-form select {
+  height: 36px; padding: 0 10px; border: 1px solid var(--field-line); border-radius: var(--radius-sam);
+  background: var(--ground); color: var(--text); font: inherit; font-size: 15px; }
+.sam-form input:focus-visible, .sam-form select:focus-visible, .sam-btn:focus-visible {
+  outline: 2px solid var(--focus); outline-offset: 2px; }
+.sam-range { display: grid; grid-template-columns: 1fr 3.5em; align-items: center; gap: 10px; }
+.sam-range input[type="range"] { width: 100%; accent-color: var(--ice); height: 24px; }
+.sam-range output { text-align: right; color: var(--text); }
+/* переключатель вместо флажка: дорожка и бегунок, бегунок едет transform */
+.sam-switch { display: flex; align-items: center; justify-content: space-between; gap: 12px; color: var(--text); }
+.sam-switch input { cursor: pointer; }   /* переключает только сам переключатель, подпись - просто текст */
+.sam-switch > span { min-width: 0; overflow-wrap: anywhere; }
+.sam-key { display: inline-block; }
+.sam-switch input { appearance: none; -webkit-appearance: none; flex: none; position: relative; width: 38px; height: 22px;
+  margin: 0; border: 1px solid var(--field-line); border-radius: 999px; background: var(--ground); cursor: pointer; }
+.sam-switch input::after { content: ""; position: absolute; top: 3px; left: 3px; width: 14px; height: 14px;
+  border-radius: 999px; background: var(--muted); transition: transform var(--dur-fast) var(--ease-out); }
+.sam-switch input:checked { border-color: var(--ice); background: color-mix(in srgb, var(--ice) 18%, var(--ground)); }
+.sam-switch input:checked::after { background: var(--ice); transform: translateX(16px); }
+.sam-switch input:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.sam-btn { height: 36px; padding: 0 14px; border: 1px solid var(--field-line); border-radius: var(--radius-sam);
+  background: none; color: var(--text); font: inherit; font-size: 13px; cursor: pointer; }
+.sam-btn:hover { border-color: var(--ice); }
+.sam-btn.danger { color: var(--alarm); }
+.sam-btn.danger:hover { border-color: var(--alarm); }
+.sam-form .sam-sep { border: 0; border-top: 1px solid var(--line); margin: 4px 0; }
+@media (pointer: coarse) {
+  .sam-form input[type="text"], .sam-form input[type="number"], .sam-form select, .sam-btn { min-height: 44px; }
+  .sam-switch, .sam-range { min-height: 44px; }
+}
+@media (prefers-reduced-motion: reduce) { .sam-switch input::after { transition: none; } }
+
+/* ==== ПРИМИТИВЫ =================================================================================================
+   Один набор на все страницы SAM: страницы берут классы и токены, своих кнопок и полей не держат. Каждый примитив -
+   в обеих темах, с наведением, кольцом фокуса --focus, выключенным состоянием и ошибкой. */
+
+/* типографика: шкала 13 / 15 / 17 / 22 / 28, Onest; числа и код - моноширинный */
+.sam-h1 { font: 600 28px/1.2 var(--font-sam); letter-spacing: -0.01em; color: var(--text); margin: 0 0 0.4em; }
+.sam-h2 { font: 600 22px/1.25 var(--font-sam); color: var(--text); margin: 0 0 0.5em; }
+.sam-h3 { font: 600 17px/1.35 var(--font-sam); color: var(--text); margin: 0 0 0.4em; }
+.sam-text { font: 400 15px/1.5 var(--font-sam); color: var(--text); }
+.sam-muted { color: var(--muted); }
+.sam-small { font-size: 13px; line-height: 1.4; }
+.sam-code, .sam-num { font-family: var(--font-num); font-variant-numeric: tabular-nums; }
+.sam-code { font-size: 0.92em; padding: 0.05em 0.35em; border: 1px solid var(--line); border-radius: var(--radius-sam);
+  background: var(--panel); }
+
+/* поля: однострочное, многострочное, выбор - класс sam-input или внутри sam-form */
+.sam-input, .sam-form input[type="text"], .sam-form input[type="number"], .sam-form input[type="search"],
+.sam-form select, .sam-form textarea {
+  min-height: 36px; padding: 6px 10px; border: 1px solid var(--field-line); border-radius: var(--radius-sam);
+  background: var(--ground); color: var(--text); font: 400 15px/1.4 var(--font-sam);
+  transition: border-color var(--dur-fast) var(--ease-out); }
+.sam-form textarea, textarea.sam-input { min-height: 84px; resize: vertical; }
+.sam-input::placeholder, .sam-form input::placeholder, .sam-form textarea::placeholder { color: var(--muted); }
+.sam-input:hover, .sam-form input:hover, .sam-form select:hover, .sam-form textarea:hover {
+  border-color: color-mix(in srgb, var(--ice) 45%, var(--line)); }
+.sam-input:focus-visible, .sam-form input:focus-visible, .sam-form select:focus-visible,
+.sam-form textarea:focus-visible, .sam-btn:focus-visible, .sam-chip:focus-visible {
+  outline: 2px solid var(--focus); outline-offset: 2px; }
+.sam-input:disabled, .sam-form :disabled, .sam-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+/* ошибка: рамка alarm и строка под полем */
+.sam-input[aria-invalid="true"], .sam-form [aria-invalid="true"] { border-color: var(--alarm); }
+.sam-error { color: var(--alarm); font-size: 13px; }
+
+/* флажок: квадрат с галочкой, тот же шаг, что у переключателя */
+.sam-check { display: inline-flex; align-items: center; gap: 10px; cursor: pointer; color: var(--text); }
+.sam-check input { appearance: none; -webkit-appearance: none; flex: none; width: 18px; height: 18px; margin: 0;
+  border: 1px solid var(--line); border-radius: 3px; background: var(--ground); display: grid; place-items: center;
+  cursor: pointer; }
+.sam-check input::after { content: ""; width: 10px; height: 6px; border: 2px solid var(--r-ink); border-top: 0;
+  border-right: 0; transform: rotate(-45deg) scale(0); transition: transform var(--dur-fast) var(--ease-out); }
+.sam-check input:checked { background: var(--ice); border-color: var(--ice); }
+.sam-check input:checked::after { transform: rotate(-45deg) scale(1); }
+.sam-check input:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+
+/* кнопки: основная, вторичная (по умолчанию), опасная, иконкой */
+.sam-btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 36px;
+  padding: 0 14px; border: 1px solid var(--line); border-radius: var(--radius-sam); background: none;
+  color: var(--text); font: 500 13px/1 var(--font-sam); cursor: pointer; text-decoration: none; }
+.sam-btn:hover:not(:disabled) { border-color: var(--ice); }
+.sam-btn.primary { border-color: var(--ice); color: var(--ice); background: color-mix(in srgb, var(--ice) 10%, transparent); }
+.sam-btn.primary:hover:not(:disabled) { background: color-mix(in srgb, var(--ice) 18%, transparent); }
+.sam-btn.danger { color: var(--alarm); }
+.sam-btn.danger:hover:not(:disabled) { border-color: var(--alarm); background: color-mix(in srgb, var(--alarm) 10%, transparent); }
+.sam-btn.icon { width: 36px; padding: 0; }
+.sam-btn svg { width: 16px; height: 16px; flex: none; }
+/* скрытое атрибутом hidden не показывает и примитив со своим display */
+.sam-btn[hidden], .sam-chip[hidden], .sam-badge[hidden], .sam-card[hidden], .sam-empty[hidden] { display: none; }
+
+/* чип (фильтр, выбор) и бейдж (состояние, счёт) */
+.sam-chip { display: inline-flex; align-items: center; gap: 6px; min-height: 28px; padding: 0 10px;
+  border: 1px solid var(--line); border-radius: 999px; background: none; color: var(--muted);
+  font: 400 13px/1 var(--font-sam); cursor: pointer; }
+.sam-chip:hover { color: var(--text); }
+.sam-chip[aria-pressed="true"] { color: var(--text); border-color: var(--ice); }
+.sam-badge { display: inline-flex; align-items: center; gap: 4px; padding: 1px 6px; border-radius: var(--radius-sam);
+  border: 1px solid currentColor; font: 500 12px/1.4 var(--font-sam); color: var(--muted); }
+.sam-badge.ok { color: var(--ice); } .sam-badge.warn { color: var(--amber); } .sam-badge.bad { color: var(--alarm); }
+
+/* карточка, разделитель, пустое состояние */
+.sam-card { border: 1px solid var(--line); border-radius: var(--radius-sam); background: var(--panel); padding: 12px 14px; }
+.sam-sep { border: 0; border-top: 1px solid var(--line); margin: 12px 0; }
+.sam-empty { display: grid; gap: 6px; justify-items: center; text-align: center; padding: 24px 16px; color: var(--muted);
+  border: 1px dashed var(--line); border-radius: var(--radius-sam); }
+.sam-empty strong { color: var(--text); font-weight: 500; }

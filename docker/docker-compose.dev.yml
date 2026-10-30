@@ -1,0 +1,56 @@
+#docker-compose.dev.yml
+# SAM Dev — Windows/WSL прототип
+# Gateway запускается отдельно (Python процесс, подключается к LM Studio)
+# Запуск: docker compose -f docker/docker-compose.dev.yml up -d
+
+name: sam-dev
+
+# Логи контейнеров не растут без предела (SAM-107): json-file без лимита был бомбой замедленного действия
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+services:
+  mongodb:
+    image: mongo:7
+    container_name: sam-mongo
+    logging: *logging
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:27017:27017"   # только эта машина: без пароля, память SAM
+    volumes:
+      - mongodb-data:/data/db
+    environment:
+      MONGO_INITDB_DATABASE: sam
+
+  qdrant:
+    image: qdrant/qdrant:latest
+    container_name: sam-qdrant
+    logging: *logging
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:6333:6333"   # только эта машина: без ключа
+    volumes:
+      - qdrant-data:/qdrant/storage
+
+  n8n:
+    image: n8nio/n8n:latest
+    container_name: sam-n8n
+    logging: *logging
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:5678:5678"   # только эта машина
+    volumes:
+      - n8n-data:/home/node/.n8n
+      - ../n8n-workflows:/workflows
+    environment:
+      GENERIC_TIMEZONE: Europe/Moscow
+      N8N_BASIC_AUTH_ACTIVE: "false"
+      WEBHOOK_URL: http://localhost:5678/
+
+volumes:
+  mongodb-data:
+  qdrant-data:
+  n8n-data:

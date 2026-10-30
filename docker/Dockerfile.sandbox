@@ -1,0 +1,45 @@
+# Образ песочницы SAM (SAM-83, ADR-016): Python, Node с npm, git, библиотеки графиков и аналитики заранее - в контейнере
+# по умолчанию нет сети, поставить их внутри нельзя.
+# Сборка из корня SAM: docker build -f docker/Dockerfile.sandbox -t sam-sandbox:2 docker
+
+# Node и npm - из официального образа Node с закреплённой версией: пакет npm из Debian тянет сотни зависимостей
+# (каждый модуль npm отдельным пакетом), а Node из Debian отстаёт от npm, который идёт с ним в паре
+# Базовые образы закреплены по digest: тег перевыпускают, digest - тот самый образ
+FROM node:22.20.0-slim@sha256:b21fe589dfbe5cc39365d0544b9be3f1f33f55f3c86c87a76ff65a02f8f5848e AS node
+
+FROM python:3.12-slim-trixie@sha256:a6e34c598f2467ed0e9a8d349809fcd8b5c603269512df273a0bb1784edc11b1
+
+# git - пакет Debian из выпуска базового образа (trixie); точную версию Debian не держит в архиве после обновлений
+# безопасности, поэтому версия закреплена выпуском. libstdc++6 нужен бинарнику node
+RUN apt-get update && apt-get install -y --no-install-recommends git libstdc++6 \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY --from=node /usr/local/bin/node /usr/local/bin/node
+COPY --from=node /usr/local/lib/node_modules/npm /usr/local/lib/node_modules/npm
+RUN ln -s ../lib/node_modules/npm/bin/npm-cli.js /usr/local/bin/npm \
+    && ln -s ../lib/node_modules/npm/bin/npx-cli.js /usr/local/bin/npx
+
+RUN pip install --no-cache-dir matplotlib==3.11.2 numpy==2.5.4 pandas==3.0.6
+
+# Аналитика: SQL по CSV, Parquet и JSON без сервера базы - сводки и графики одним запросом. Отдельным слоем: правка
+# этой строки не перекачивает библиотеки выше
+RUN pip install --no-cache-dir duckdb==1.5.6
+
+# Корень только для чтения, пишется /tmp (tmpfs) и /work: кэш matplotlib, npm и домашняя папка uid 1000 - в /tmp
+ENV HOME=/tmp MPLCONFIGDIR=/tmp/matplotlib MPLBACKEND=Agg
+
+# Пакеты задачи (gateway/sandbox_pkgs.py) pip кладёт в /work/.pkgs: импорт видит их в каждом запуске задачи
+ENV PYTHONPATH=/work/.pkgs
+
+# Автор коммитов git в песочнице: без него git commit падает, а глобального конфига в /tmp нет
+ENV GIT_AUTHOR_NAME=SAM GIT_AUTHOR_EMAIL=sam@sandbox.local \
+    GIT_COMMITTER_NAME=SAM GIT_COMMITTER_EMAIL=sam@sandbox.local
+
+# Хуки и fsmonitor из чужого .git (склонированный или принесённый репозиторий) не выполняются: настройка уровня
+# командной строки старше .git/config репозитория
+ENV GIT_CONFIG_PARAMETERS="'core.hooksPath=/dev/null' 'core.fsmonitor=false'"
+
+# Папка задачи с хоста приходит не от uid 1000 (Docker Desktop монтирует её от root), и git отказывается работать
+# в /work («dubious ownership»); /work - единственная папка задачи, её и вложенные репозитории git признаёт своими
+RUN git config --system --add safe.directory /work \
+    && git config --system --add safe.directory '/work/*'

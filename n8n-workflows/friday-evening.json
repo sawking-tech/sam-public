@@ -1,0 +1,45 @@
+{
+  "name": "SAM: Пятничный вечер",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 19 * * 5"
+            }
+          ]
+        }
+      },
+      "id": "e5f6a7b8-0005-0005-0005-000000000001",
+      "name": "Пятница 19:00",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.1,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://gateway:8000/v1/chat/completions",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\"messages\": [{\"role\": \"user\", \"content\": \"Пятничный вечер! Намекни на вечер вдвоём с партнёром. Мягко, романтично, с идеями что можно сделать вместе.\"}]}",
+        "options": {}
+      },
+      "id": "e5f6a7b8-0005-0005-0005-000000000002",
+      "name": "SAM Gateway",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [460, 300]
+    }
+  ],
+  "connections": {
+    "Пятница 19:00": {
+      "main": [[{"node": "SAM Gateway", "type": "main", "index": 0}]]
+    }
+  },
+  "active": false,
+  "settings": {"executionOrder": "v1"},
+  "id": "friday-evening"
+}

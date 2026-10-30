@@ -1,0 +1,8 @@
+{
+  "_comment": "Ручные профили для оркестратора (gateway/model_choice.py), ключ поставщик/модель. Модели агрегаторов приходят из их каталогов (gateway/model_catalog.py): цена, окно, инструменты и рейтинг Artificial Analysis из каталога OpenRouter; уровень из рейтинга по RATING_BANDS. Здесь - локальные модели (их нет в каталогах) и ручная правка там, где каталог ошибается или рейтинга нет: строка здесь сильнее каталога. tier 1 простое, 2 обычное, 3 код и правка SAM. local: на этом ПК, токены бесплатны, видеокарта общая с голосом. tps_hint: токенов выхода в секунду до замера.",
+  "models": {
+    "lmstudio/qwen/qwen3-30b-a3b-2507": {"tier": 1, "local": true, "tools": true, "context": 16384},
+    "polza/deepseek/deepseek-v4-flash": {"tier": 2, "local": false, "tools": true, "context": 1000000},
+    "openrouter/deepseek/deepseek-v4-flash": {"tier": 2, "local": false, "tools": true, "context": 1000000}
+  }
+}

@@ -1,0 +1,45 @@
+{
+  "name": "SAM: Еженедельная оптимизация",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 2 * * 0"
+            }
+          ]
+        }
+      },
+      "id": "f6a7b8c9-0006-0006-0006-000000000001",
+      "name": "Воскресенье 02:00",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.1,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://gateway:8000/v1/chat/completions",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\"messages\": [{\"role\": \"user\", \"content\": \"[SYSTEM MAINTENANCE] Проанализируй коллекции MongoDB за прошедшую неделю. Предложи оптимизацию схемы если нужно. Проверь новые MCP серверы на GitHub. Отчёт сохрани в MongoDB коллекцию maintenance_logs.\"}]}",
+        "options": {}
+      },
+      "id": "f6a7b8c9-0006-0006-0006-000000000002",
+      "name": "SAM Gateway",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [460, 300]
+    }
+  ],
+  "connections": {
+    "Воскресенье 02:00": {
+      "main": [[{"node": "SAM Gateway", "type": "main", "index": 0}]]
+    }
+  },
+  "active": false,
+  "settings": {"executionOrder": "v1"},
+  "id": "weekly-db-optimize"
+}

@@ -1,0 +1,6 @@
+# Служебный образ файрвола песочницы SAM (SAM-83, ADR-016): ставит правила DOCKER-USER, которые закрывают сети
+# песочницы дом и хост. Запускается привилегированным в сети хоста Docker на долю секунды и выходит.
+# Сборка из корня SAM: docker build -f docker/Dockerfile.netguard -t sam-netguard:1 docker
+# Базовый образ закреплён по digest: тег перевыпускают, digest - тот самый образ
+FROM alpine:3.20@sha256:d9e853e87e55526f6b2917df91a2115c36dd7c696a35be12163d44e6e2a4b6bc
+RUN apk add --no-cache iptables

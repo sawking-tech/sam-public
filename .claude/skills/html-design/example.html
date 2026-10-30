@@ -1,0 +1,200 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Сон за неделю</title>
+<style>
+  /* Образец html-design: всё внутри файла, ни одного внешнего адреса, работает в CSP «sandbox allow-scripts». */
+  :root {
+    color-scheme: light dark;
+    --bg: #f6f7f9;
+    --surface: #ffffff;
+    --text: #1b1f24;
+    --muted: #57606a;            /* 6.4:1 на --surface */
+    --line: #d0d7de;
+    --accent: #0b6bcb;           /* 5.2:1 на --surface */
+    --accent-soft: #cfe3f7;
+    --good: #1a7f37;
+    --radius: 10px;
+    --space: 16px;
+    --font: system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans", sans-serif;
+    --enter: 700ms;              /* одна длительность появления графика */
+    --ease-out: cubic-bezier(.2, .7, .2, 1);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0d1117;
+      --surface: #161b22;
+      --text: #e6edf3;
+      --muted: #9da7b3;
+      --line: #30363d;
+      --accent: #58a6ff;
+      --accent-soft: #1f3b5c;
+      --good: #3fb950;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font: 16px/1.5 var(--font);
+  }
+  main {
+    max-width: 720px;
+    margin: 0 auto;
+    padding: calc(var(--space) * 1.5) var(--space);
+  }
+  h1 { font-size: clamp(1.4rem, 1.1rem + 1.5vw, 2rem); line-height: 1.2; margin: 0 0 4px; }
+  .lead { color: var(--muted); margin: 0 0 var(--space); max-width: 60ch; }
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: var(--space);
+  }
+  .total { font: 600 2.4rem/1 var(--font); font-variant-numeric: tabular-nums; }
+  .total small { font: 400 1rem var(--font); color: var(--muted); margin-left: 6px; }
+  svg { display: block; width: 100%; height: auto; overflow: visible; }
+  .axis text, .label { fill: var(--muted); font: 12px var(--font); }
+  .grid { stroke: var(--line); stroke-width: 1; }
+  .bar { fill: var(--accent-soft); transform-box: fill-box; transform-origin: bottom; }
+  .bar.ok { fill: var(--accent); }
+  .goal { stroke: var(--good); stroke-width: 2; stroke-dasharray: 6 4; }
+  .trend { fill: none; stroke: var(--text); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+  .bar { animation: grow var(--enter) var(--ease-out) both; animation-delay: calc(var(--i) * 60ms); }
+  .trend { stroke-dasharray: var(--len); stroke-dashoffset: var(--len);
+           animation: draw calc(var(--enter) * 1.4) var(--ease-out) 300ms forwards; }
+  @keyframes grow { from { transform: scaleY(0); } to { transform: scaleY(1); } }
+  @keyframes draw { to { stroke-dashoffset: 0; } }
+  button {
+    font: inherit; color: var(--text); background: var(--surface);
+    border: 1px solid var(--line); border-radius: 8px; padding: 10px 14px; min-height: 44px; cursor: pointer;
+  }
+  button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: space-between;
+         margin-bottom: var(--space); }
+  .note { color: var(--muted); font-size: 14px; margin-top: var(--space); }
+  /* Человек просил меньше движения - сразу итоговое состояние */
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation-duration: 1ms !important; animation-delay: 0ms !important;
+                             transition-duration: 1ms !important; }
+    .trend { stroke-dashoffset: 0; }
+  }
+</style>
+</head>
+<body>
+<main>
+  <h1>Сон за неделю</h1>
+  <p class="lead">Столбцы - часы сна по дням, пунктир - цель 7,5 ч, линия - среднее за три дня.</p>
+  <section class="card" aria-labelledby="chart-title">
+    <div class="row">
+      <div>
+        <div id="chart-title" class="label">В среднем за неделю</div>
+        <div class="total"><span id="avg">0</span><small>ч</small></div>
+      </div>
+      <button id="replay" type="button">Показать заново</button>
+    </div>
+    <svg id="chart" viewBox="0 0 360 220" role="img" aria-labelledby="chart-title chart-desc">
+      <desc id="chart-desc"></desc>
+    </svg>
+    <p class="note">Пример данных: замените массив DATA в скрипте своими значениями.</p>
+  </section>
+</main>
+<script>
+  const DATA = [
+    { day: "Пн", hours: 6.5 }, { day: "Вт", hours: 7.2 }, { day: "Ср", hours: 8.1 },
+    { day: "Чт", hours: 5.9 }, { day: "Пт", hours: 6.8 }, { day: "Сб", hours: 8.6 }, { day: "Вс", hours: 7.9 },
+  ];
+  const GOAL_HOURS = 7.5;
+  const MAX_HOURS = 10;                       // верх шкалы: сон длиннее - редкость
+  const TREND_WINDOW = 3;                     // дней в скользящем среднем
+  const COUNT_UP_MS = 900;                    // длительность счётчика среднего
+  const BOX = { w: 360, h: 220, left: 26, right: 4, top: 8, bottom: 24 };   // совпадает с viewBox: подписи 12px читаются и на телефоне
+  const NS = "http://www.w3.org/2000/svg";    // пространство имён SVG, не сетевой адрес
+
+  const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
+
+  function el(name, attrs, parent) {
+    const node = document.createElementNS(NS, name);
+    for (const [k, v] of Object.entries(attrs)) node.setAttribute(k, v);
+    if (parent) parent.appendChild(node);
+    return node;
+  }
+
+  function scales() {
+    const plotW = BOX.w - BOX.left - BOX.right;
+    const plotH = BOX.h - BOX.top - BOX.bottom;
+    const step = plotW / DATA.length;
+    return {
+      x: i => BOX.left + i * step,
+      step,
+      y: v => BOX.top + plotH * (1 - v / MAX_HOURS),
+    };
+  }
+
+  function movingAverage(values, window) {
+    return values.map((_, i) => {
+      const part = values.slice(Math.max(0, i - window + 1), i + 1);
+      return part.reduce((a, b) => a + b, 0) / part.length;
+    });
+  }
+
+  function draw(svg) {
+    svg.querySelectorAll("g").forEach(g => g.remove());
+    const s = scales();
+    const axis = el("g", { class: "axis" }, svg);
+    for (let v = 0; v <= MAX_HOURS; v += 2) {
+      el("line", { class: "grid", x1: BOX.left, x2: BOX.w - BOX.right, y1: s.y(v), y2: s.y(v) }, axis);
+      el("text", { x: BOX.left - 6, y: s.y(v) + 4, "text-anchor": "end" }, axis).textContent = v;
+    }
+    const bars = el("g", {}, svg);
+    DATA.forEach((d, i) => {
+      const pad = s.step * 0.2;
+      const rect = el("rect", {
+        class: d.hours >= GOAL_HOURS ? "bar ok" : "bar",
+        x: s.x(i) + pad, width: s.step - pad * 2, rx: 4,
+        y: s.y(d.hours), height: s.y(0) - s.y(d.hours),
+        style: `--i:${i}`,
+      }, bars);
+      el("title", {}, rect).textContent = `${d.day}: ${d.hours} ч`;
+      el("text", { class: "label", x: s.x(i) + s.step / 2, y: BOX.h - 8, "text-anchor": "middle" }, axis)
+        .textContent = d.day;
+    });
+    el("line", { class: "goal", x1: BOX.left, x2: BOX.w - BOX.right, y1: s.y(GOAL_HOURS), y2: s.y(GOAL_HOURS) },
+       el("g", {}, svg));
+    const avg = movingAverage(DATA.map(d => d.hours), TREND_WINDOW);
+    const points = avg.map((v, i) => `${s.x(i) + s.step / 2},${s.y(v)}`).join(" ");
+    const trend = el("polyline", { class: "trend", points }, el("g", {}, svg));
+    trend.style.setProperty("--len", Math.ceil(trend.getTotalLength()));
+
+    const reached = DATA.filter(d => d.hours >= GOAL_HOURS).length;
+    svg.querySelector("desc").textContent =
+      `Часы сна по дням недели, цель ${GOAL_HOURS} ч достигнута в ${reached} днях из ${DATA.length}.`;
+  }
+
+  function countUp(node, target) {
+    const text = v => v.toFixed(1).replace(".", ",");
+    if (reduceMotion.matches) { node.textContent = text(target); return; }
+    const start = performance.now();
+    function frame(now) {
+      const t = Math.min(1, (now - start) / COUNT_UP_MS);
+      const eased = 1 - Math.pow(1 - t, 3);
+      node.textContent = text(target * eased);
+      if (t < 1) requestAnimationFrame(frame);
+    }
+    requestAnimationFrame(frame);
+  }
+
+  function render() {
+    draw(document.getElementById("chart"));
+    const mean = DATA.reduce((a, d) => a + d.hours, 0) / DATA.length;
+    countUp(document.getElementById("avg"), mean);
+  }
+
+  document.getElementById("replay").addEventListener("click", render);
+  render();
+</script>
+</body>
+</html>

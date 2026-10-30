@@ -1,0 +1,1429 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Дом - радар SAM</title>
+<!-- каркас страниц SAM (docs/features/shell.md): файлы каркаса и шрифты - с самого радара (его /static - та же папка
+     gateway/static, шрифты своего origin грузятся без CORS), навигация - скриптом шлюза; __GATEWAY__ радар
+     подставляет при отдаче страницы.
+     Сцена остаётся на всё окно под стеклом полосы; свои цвета радара - --r-ink и --r-text (у каркаса --ink и --text
+     свои и меняются с темой). -->
+<link rel="preload" href="./static/shell/fonts/onest-cyrillic.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="./static/shell/shell.css">
+<link rel="stylesheet" href="./static/shell/sam.css">
+<script src="__GATEWAY__/shell/config.js"></script>
+<script src="./static/shell/boot.js"></script>
+<script src="./static/shell/shell.js" defer data-page="radar" data-maxw="4000"></script>
+<style>
+  /* Палитра ночного дома - палитра каркаса (gateway/static/shell/sam.css): --r-ink фон сцены, --deck пол, --wire
+     стены, --haze второстепенное, --amber свой, --ice гость, --alarm чужой, --pet (lilac каркаса) питомец. Днём
+     (светлая тема каркаса) те же имена дают бумагу и чернила - сцена перекрашивается без перезагрузки. */
+  :root {
+    --pet: var(--lilac);
+    --font: var(--font-sam);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; background: var(--r-ink); color: var(--r-text); font-family: var(--font); overflow: hidden; }
+  body { user-select: none; -webkit-user-select: none; }                       /* мышью по сцене и подписям ничего не выделяется */
+  input, textarea { user-select: text; -webkit-user-select: text; }              /* кроме полей: числа анимации копируются */
+  #scene { position: fixed; inset: 0; display: block; width: 100%; height: 100%; touch-action: none; }
+  #head { position: fixed; top: 18px; left: 22px; z-index: 5; pointer-events: none; }
+  /* в каркасе подписи и панель отладки встают под полосу */
+  .sam-shell #head, .sam-shell #devs { top: calc(var(--barh) + 18px); }
+  .sam-shell #dbg { top: calc(var(--barh) + 84px); }
+  #head h1 { font-size: 22px; font-weight: 300; letter-spacing: 0.01em; }
+  #head p { margin-top: 4px; font-size: 13px; color: var(--haze); }
+  #head a { pointer-events: auto; color: var(--haze); text-decoration: none; border-bottom: 1px solid var(--wire); }
+  #head a:hover, #head a:focus-visible { color: var(--r-text); border-color: var(--r-text); outline: none; }
+  #state { display: inline-flex; gap: 8px; align-items: center; }
+  #state i { width: 7px; height: 7px; border-radius: 50%; background: var(--haze); display: inline-block; }
+  #state.live i { background: var(--ice); box-shadow: 0 0 8px var(--ice); }
+  #state.lost i { background: var(--alarm); box-shadow: 0 0 8px var(--alarm); }
+  #legend { position: fixed; left: 22px; bottom: 18px; z-index: 5; font-size: 12px; color: var(--haze); display: flex; gap: 16px; flex-wrap: wrap; }
+  #legend span::before { content: ""; display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; background: var(--c); box-shadow: 0 0 6px var(--c); }
+  #devs { position: fixed; top: 18px; right: 22px; z-index: 5; font-size: 12px; color: var(--haze); text-align: right; line-height: 1.6; max-width: 46ch; }
+  .dev.on { color: var(--r-text); }
+  #hint { position: fixed; right: 22px; bottom: 18px; z-index: 5; font-size: 12px; color: var(--haze); text-align: right; line-height: 1.5; }
+  .lab { position: fixed; left: 0; top: 0; z-index: 4; font-size: 12px; color: var(--haze); pointer-events: none; white-space: nowrap; transform: translate(-50%, -50%); text-shadow: 0 0 6px var(--r-ink), 0 0 2px var(--r-ink); will-change: transform; }
+  .lab.room { font-size: 13px; color: color-mix(in srgb, var(--haze) 70%, var(--r-text)); }
+  .lab.zone { color: var(--haze); opacity: .75; }            /* размеченные зоны не выбиваются: янтарь оставлен для своих людей */
+  .lab.person { color: var(--r-text); font-weight: 600; font-size: 13px; }
+  .lab.object { font-size: 13px; opacity: .9; }
+  #floorLayers label { display: block; margin-top: 4px; }
+  #floorLayers .parts { margin: 4px 0 0 18px; }
+  #flowLegendBar { display: inline-block; width: 120px; height: 10px; vertical-align: middle; border-radius: 2px; }
+  #flowHover { display: block; margin-top: 2px; min-height: 1.2em; }
+  #off { position: fixed; inset: 0; display: none; place-items: center; z-index: 8; background: var(--r-ink); text-align: center; padding: 24px; }
+  #off.on { display: grid; }
+  #off h2 { font-weight: 300; font-size: 26px; margin-bottom: 10px; }
+  #off p { color: var(--haze); max-width: 46ch; line-height: 1.55; }
+  #off code { color: var(--ice); }
+  #zoneForm { position: fixed; z-index: 9; display: none; gap: 6px; padding: 8px; background: rgba(10, 18, 36, .92); border: 1px solid var(--wire); border-radius: 8px; }
+  #zoneForm.on { display: flex; }
+  #zoneForm input { background: transparent; border: 0; border-bottom: 1px solid var(--wire); color: var(--r-text); font: inherit; padding: 4px 6px; width: 190px; }
+  #zoneForm input:focus { outline: none; border-color: var(--amber); }
+  #zoneForm small { color: var(--haze); align-self: center; font-size: 11px; }
+  @media (prefers-reduced-motion: reduce) { #state.live i { box-shadow: none; } }
+  #dbg { position: fixed; left: 22px; top: 84px; z-index: 6; width: 310px; max-height: calc(100% - 150px); overflow-y: auto; display: none; padding: 12px 14px; background: rgba(10, 18, 36, .9); border: 1px solid var(--wire); border-radius: 8px; font-size: 12px; color: var(--haze); }
+  #dbg.on { display: block; }
+  #dbg h3 { font-size: 12px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; margin-bottom: 8px; color: var(--r-text); }
+  #dbg label { display: block; margin-top: 10px; color: var(--r-text); }
+  #dbg label output { float: right; color: var(--amber); font-variant-numeric: tabular-nums; }
+  #dbg label small { display: block; margin-top: 2px; color: var(--haze); line-height: 1.35; }
+  #dbg input[type=range] { width: 100%; accent-color: var(--amber); }
+  #dbg button { margin-top: 10px; background: transparent; color: var(--haze); border: 1px solid var(--wire); border-radius: 6px; padding: 4px 10px; font: inherit; cursor: pointer; }
+  #dbg button:hover, #dbg button:focus-visible { color: var(--r-text); border-color: var(--r-text); outline: none; }
+  #dbg select { width: 100%; margin-top: 3px; background: rgba(4, 6, 11, .6); color: var(--r-text); border: 1px solid var(--wire); border-radius: 6px; padding: 4px 6px; font: inherit; }
+  #dbgZones { margin-top: 6px; max-height: 160px; overflow-y: auto; }
+  #dbgZones div { display: flex; justify-content: space-between; align-items: center; padding: 1px 0; color: var(--r-text); }
+  #dbgZones button { margin: 0; padding: 0 8px; }
+  .dbgrow { margin-top: 8px; color: var(--r-text); }
+  .dbgrow canvas { display: block; width: 100%; height: 34px; margin-top: 2px; background: rgba(4, 6, 11, .6); border-radius: 4px; }
+</style>
+</head>
+<body>
+<canvas id="scene" aria-label="Трёхмерная сцена дома с людьми"></canvas>
+<div id="head">
+  <h1>Дом</h1>
+  <p><span id="state"><i></i><span id="stateText">подключаюсь</span></span> · <span id="count"></span> · <a href="#" id="dbgToggle">отладка (D)</a></p>
+</div>
+<div id="legend"></div>
+<div id="dbg" aria-label="Панель отладки радара">
+  <h3 style="margin-top:14px">Анимация роя: шаги, паузы, автопилот</h3>
+  <label title="только настоящие источники по всем каналам (Wi-Fi, сообщения, время, со слов): автопилот и ручные вероятности снимаются, журнал состояния людей включается"><input id="realOn" type="checkbox"> реальное определение (тест Wi-Fi)</label>
+  <label><input id="autoOn" type="checkbox"> автопилот</label>
+  <label>Режим <select id="autoMode"><option value="routine">быт: сцены по кругу (сон, гости, работа, готовка, туалет)</option><option value="random">случайные места</option></select></label>
+  <label>Период смены мест, с <output id="autoOut">12</output><input id="autoPeriod" type="range" min="4" max="40" step="1" value="12"></label>
+  <div id="animServerKnobs"></div>
+  <div id="animKnobs"></div>
+  <button id="animReset" type="button">Параметры по умолчанию</button>
+  <button id="animCopy" type="button">Показать числа</button>
+  <textarea id="animNumbers" rows="9" readonly style="display:none;width:100%;margin-top:8px;background:rgba(4,6,11,.6);color:var(--r-text);border:1px solid var(--wire);border-radius:6px;font:11px monospace"></textarea>
+  <h3 style="margin-top:14px">Вероятность человека</h3>
+  <div id="dbgPeople"></div>
+  <small>ползунок ставит вероятность сразу; 0 - человека нет на карте; место - куда его сдвинуть (коридор, кухня, ванная, устройство)</small>
+  <h3 style="margin-top:14px">Зоны</h3>
+  <div id="dbgZones"></div>
+  <h3 style="margin-top:14px">Имитация сообщения</h3>
+  <form id="dbgSim" autocomplete="off">
+    <label>Канал <select id="simChannel"><option value="chat">письмо (чат монитора)</option><option value="voice">голос (микрофон)</option><option value="told">со слов (где человек)</option></select></label>
+    <label>Устройство или место <select id="simDevice"></select></label>
+    <label>Кто <select id="simWho"><option value="">не назван</option></select></label>
+    <label id="simLevelRow">Громкость голоса <output id="simLevelOut">0.5</output><input id="simLevel" type="range" min="0" max="1" step="0.05" value="0.5"></label>
+    <button type="submit">Отправить как будто от него</button>
+    <small id="simResult"></small>
+  </form>
+  <h3 style="margin-top:14px">Отладка и снимок</h3>
+  <label><input id="traceOn" type="checkbox"> писать трассу состояний в лог (положение, поза, взгляд, окружение)</label>
+  <label id="timeStopRow" title="перемотка: сцена, люди и устройства замирают, новые кадры не применяются; поле телефона считается заново из записи треков на выбранную секунду (минута до неё), камеру можно крутить, секунды и флаги слоя менять"><input id="timeStop" type="checkbox"> перемотка (сцена замирает, поле по записи)</label>
+  <div id="rewindRow" style="display:none"><input id="rewindAt" type="range" min="0" max="0" step="1" value="0" style="width:70%"> <small id="rewindLabel"></small></div>
+  <div id="floorLayers" title="на полу один слой, остальные следы выключены">
+    <b>Слой пола</b>
+    <label><input type="radio" name="floorLayer" id="visitOn" checked> карта посещений (сохранённые координаты)</label>
+    <label><input type="radio" name="floorLayer" id="noneOn"> чистый пол</label>
+    <label title="ожидаемый уровень роутера по клеткам плана с учётом стен; модель подогнана по стоянкам одного телефона"><input type="radio" name="floorLayer" id="coverageOn"> карта покрытия сети</label> <select id="coverageModel" title="устройство и диапазон: у каждого своя карта"></select> <label title="стрелки туда, где ожидаемый уровень растёт (к роутеру, с учётом стен); длина по крутизне: длинные - узор уровня различает места, короткие или нет - поле плоское"><input id="coverageArrows" type="checkbox" checked> стрелки градиента</label> <label title="из каждой клетки k секунд шага по полу к роутеру: стрелка туда, куда дошёл, длина - разница ожидаемого уровня; тёмная - выше шума носимого телефона, серая - ниже, красная - уровень падает"><input id="walkOn" type="checkbox"> шаг к роутеру</label> <input id="walkSeconds" type="range" min="1" max="14" step="1" value="1" style="width:90px"> <small id="walkOut"></small> <small id="coverageOut"></small>
+    <label title="вероятность места выбранного wi-fi устройства по клеткам доступных мест: стены и мебель не пересекаются, ноль чёрный; значение под курсором"><input type="radio" name="floorLayer" id="phoneFieldOn"> вероятностное поле позиции wi-fi устройства</label>
+    <label title="свидетельства о месте выбранного человека сейчас: пятно на каждом, цвет и прозрачность - вес на сейчас"><input type="radio" name="floorLayer" id="personFieldOn"> вероятностное поле позиции человека</label> <select id="personFieldWho"></select> <small id="personFieldOut"></small>
+    <label id="flowAlgoMode" style="display:none" title="показать, как поле получено: кольца секунд, законные и исключённые клетки, пути окна, итог и точки; для человека ждёт потока человека (пункт radar-person-flow)"><input id="flowAlgoOn" type="checkbox"> показать, как алгоритм считает это поле</label>
+    <div class="parts" id="flowParts" style="display:none">
+      <label>устройство <select id="flowDevice"></select></label> <small id="flowOut"></small>
+      <div id="flowLegend" title="цвет клетки - вероятность; красный - наибольшая на сейчас"><span id="flowLegendBar"></span> <small id="flowLegendText"></small></div>
+      <small id="flowHover" title="вероятность клетки под курсором"></small>
+      <div id="flowAlgo" style="display:none">
+      <label title="сколько секунд окна в расчёте: 1 - только первая, 2 - первые две, ... число срезов окна или пусто - всё окно, итог; поле уточняется, точки секунд идут цепочкой">секунд окна в расчёте <input id="flowUpTo" type="number" min="1" step="1" value="" placeholder="все" style="width:3.5em"></label>
+      <label title="десять самых разных законных путей окна из ста: первый дальше всех от среднего, каждый следующий дальше всех от взятых; показывают границы пучка, то есть почему область широкая"><input id="flowPaths" type="checkbox" checked> подходящие пути окна (10 самых широких)</label>
+      <label title="клетки, лежащие на законных путях до конца окна: шаг не длиннее хода человека за секунду, стены не пересекаются; светлые"><input id="flowLegal" type="checkbox" checked> клетки законных путей окна</label>
+      <label title="зоны колец за весь интервал, которые не лежат ни на одном законном пути: тёмная дымка"><input id="flowExcluded" type="checkbox" checked> исключённые зоны (затемнены)</label>
+      <label title="клетки, где ожидаемый радио-моделью уровень равен измеренному за эту секунду: тонкий контур; вместе с клетками законных путей - итоговая зона вероятности этой секунды"><input id="flowContour" type="checkbox" checked> контур уровня <span id="flowSecondLabel">7</span>-й секунды</label>
+      <label title="цепочка точек трека: 0 - позиция до окна, дальше точки секунд окна; последняя залита"><input id="flowPoint" type="checkbox" checked> прошлая точка (0 - до окна, дальше по секундам)</label>
+      <label title="стрелка от точки туда, где ожидаемый радио-моделью уровень растёт: к роутеру; по ней видно, в какую сторону сигнал «горячее»"><input id="flowAscent" type="checkbox" checked> стрелка к роутеру (рост уровня)</label>
+      <pre id="flowGrowth" title="как росла определённость поля по секундам: пик клетки, доля массы в метре от точки секунды, площадь, где лежит 90% массы" style="margin:4px 0;font-size:11px;white-space:pre-wrap"></pre>
+      </div>
+    </div>
+  </div>
+  <button id="heatClear" type="button" title="обнулить накопленную карту посещений; размеченная прогулка остаётся">Очистить карту посещений</button>
+  <button id="shotBtn" type="button">Снимок страницы (для разбора)</button> <small id="shotOut"></small>
+  <details style="margin-top:14px"><summary style="cursor:pointer;color:var(--haze)">Wi-Fi детектор (пока ни на что не влияет)</summary>
+  <h3>Детектор движения</h3>
+  <div id="dbgKnobs"></div>
+  <button id="dbgReset" type="button">Сбросить к умолчанию</button>
+  <h3 style="margin-top:14px">Сигнал устройств</h3>
+  <div id="dbgLines"><small>жду данные роутера</small></div>
+  <small>голубая - дрожание сигнала, серая - спокойная база, жёлтая - порог движения; выше жёлтой - движение</small>
+  </details>
+</div>
+<div id="devs" aria-label="Устройства дома"></div>
+<div id="hint">мышь - вращать, колесо - приблизить<br>1, 2, 3 - ракурсы; Shift и протянуть - подписать зону</div>
+<form id="zoneForm" autocomplete="off"><input id="zoneName" placeholder="диван, кровать, кухня" maxlength="40" aria-label="Подпись зоны"><small>Enter - сохранить, Esc - отмена</small></form>
+<div id="off"><div><h2>Радар выключен</h2><p>Функция работает по флагу. Чтобы включить, поставь <code>SAM_PRESENCE=mock</code> в <code>.env</code> и перезапусти шлюз. Реальный источник появится вместе с ESP32.</p></div></div>
+
+<script type="importmap">
+{ "imports": { "three": "./static/vendor/three/build/three.module.js",
+               "three/addons/": "./static/vendor/three/examples/jsm/" } }
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { PlanView } from './static/presence/plan_view.js';           // рисунок плана и выдавливание по таблице стилей
+import { makeOnFloor, elementsFromLayout, surfaceAt, deviceSurfaceAt, stickySurface, supportPose, swivelFace } from './static/presence/plan_scene.js';
+import { planFlight, evalFlight, shuffled, assignTargets, FLIGHT, FLIGHT_KNOBS, DEFAULTS, burstSeconds } from './static/presence/flight.js';        // перелёт облака роем
+import { heatScale, heatField, trailCells, capCells, HEAT_UP, HEAT_FADE_T, HEAT_FIELD_FLOOR_S } from './static/presence/heat.js';     // карта посещений: шкала и непрерывное поле
+import { personBlobs, paintBlobs, describePerson, probabilityRgb, floorMask, FIELD_PX_PER_M } from './static/presence/fields.js';     // слои вероятности: поле телефона и поле человека
+import { FIELD_ALPHA, describeGrowth, secondSlices, paintTrail, paintZone, paintContour, paintContours, paintExcluded, paintLegal, paintPaths, paintPoint, paintAscent, describeFlow, cellAt, legendGradient, legendText } from './static/presence/flow.js';          // слой потока: кольца, пути, зона, точка, стрелка к роутеру
+import { deviceTarget, pushOut, deviceLabel } from './static/presence/devices.js';           // где рисовать устройство: на своём месте, по своей оценке или у хозяина
+import { coverageTexture, coverageSummary, connectedText, gradientArrows, paintArrows, walkArrows, paintWalkArrows, walkSummary } from './static/presence/coverage.js';       // карта покрытия сети: полосы уровня, текстура, стрелки градиента
+import { smoothTrail, spreadPasses } from './static/presence/trail.js';                                 // дорожка следа со срезанными углами
+import { labelKey, hiddenLabels, PRIORITY as LABEL_PRIO } from './static/presence/labels.js';           // дубли подписей прячутся
+import { transitionsBetween, flightFor, smoothAngle, slides, SLIDE_RATE, TURN_RATE } from './static/presence/transitions.js';      // какие смены состояния запускают рой
+import { fitDistance } from './static/presence/camera_fit.js';        // расстояние камеры, при котором весь план в кадре
+import { figurePoints, SEAT_Y, STAND_VARIANTS, STRIDE_VARIANTS } from './static/presence/figure.js';           // силуэты людей точками
+
+// ── Ошибки страницы идут в лог сервиса: по ним видно, почему кадр замер ─────────────────────────────
+const reportClient = (kind, message, extra = '') => fetch('./sam/presence/client-log', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({ kind, message: String(message), extra: String(extra) }) }).catch(() => {});
+window.addEventListener('error', e => reportClient('error', e.message, `${e.filename}:${e.lineno}:${e.colno} ${e.error?.stack ?? ''}`));
+window.addEventListener('unhandledrejection', e => reportClient('promise', e.reason?.message ?? e.reason, e.reason?.stack ?? ''));
+
+// ── Настройки ───────────────────────────────────────────────────────────────
+const MAX_PEOPLE = 8;                 // слотов под людей и питомцев; больше в доме не ждём
+const PTS = 1024;                     // точек на слот (сервер шлёт 220 у человека и 80 у кота)
+const TRAIL_N = 40;                   // длина следа на слот
+const TRAIL_STEP_M = 0.06;            // новая точка следа, когда центр сдвинулся на столько
+const HEAT_RAMP = [[0, [40, 90, 230]], [0.6, [60, 200, 110]], [0.97, [255, 150, 40]], [1, [255, 130, 30]]];   // температура по доле посещаемости: синий - редко и остыло, зелёный - середина, оранжевый - только верхние 3% мест
+const HEAT_ALPHA = [12, 52];          // прозрачность клетки (0..255): холодная еле видна, горячая заметна, но пол и стены читаются сквозь неё
+const STEPS_FULL_S = 0.4, STEPS_ALPHA = 110, STEPS_RGB = [215, 230, 255];   // слой шагов: свежая ходьба (0,4 с на клетку после размытия и больше) почти полной яркости, холодный белый; протухает за минуты
+let stepsPlane = null, coveragePlane = null, coverageArrowsPlane = null, walkState = null;      // walkState - поля шага к роутеру для выбранной модели
+const ARROWS_PX_PER_M = 60;            // холст стрелок градиента: линии тонкие, нужнее разрешение, чем у полей
+let heatValue = new Map(), heatT = () => null, heatCell = 0.25;   // карта для окраски следов; heatT - шкала секунд в 0..1 (null - шум)
+function heatColor(t) {
+  const a = HEAT_RAMP.findLast(([stop]) => stop <= t) ?? HEAT_RAMP[0], b = HEAT_RAMP.find(([stop]) => stop > t) ?? a, k = b === a ? 0 : (t - a[0]) / (b[0] - a[0]);
+  return a[1].map((v, i) => v + (b[1][i] - v) * k);
+}
+const ZONE_LINE_COLOR = 0x7f93bd;     // линии размеченных зон: цвет второстепенного текста, не янтарь людей
+const ZONE_LINE_OPACITY = 0.3;
+const SMOOTH_RATE = 12;               // скорость догонялки точек к кадру источника, 1/с
+const IDLE_ROTATE_S = 25;             // после стольких секунд покоя камера медленно кружит
+const RECONNECT_MAX_MS = 10000;
+const AURA_N = 420;                   // точек ауры активности Wi-Fi вокруг роутера (режим rssi)
+const AURA_RADIUS_M = 2.0;            // до куда доходит аура
+const DEV_REST_M = 0.04;              // точка устройства лежит на поверхности под ней (стол, кровать, пол), чуть выше неё
+const DEV_LABEL_LIFT_M = 0.3;         // подпись устройства над самой точкой
+const DEV_MAGNET_M = 0.3;             // поверхность ищется не дальше этого от точки: точка потока лежит у края стола, не строго над ним
+const DEV_MAX = 16;                   // устройств на странице одновременно
+const DEV_NEAR_DB = -31, DEV_FAR_DB = -90;   // -31: телефон вплотную к роутеру; -90: граница ауры
+const LEFT_LABEL_MS = 10000;          // подпись «вышел из сети» висит столько после пропажи устройства
+const DEV_SMOOTH_RATE = 4;            // скорость, с которой метка устройства следует за сигналом, 1/с
+const GHOST_SLOTS = 3;                // слотов облака под призраков режима rssi: по одному на закреплённое устройство (в плане их три)
+const GHOST_FIRST = MAX_PEOPLE - GHOST_SLOTS;   // слоты людей - до него, призраки - с него
+const GLOW_K = 0.9;                   // яркость точки в свечении: ниже единицы, чтобы тесные точки не складывались в белое
+const GHOST_MIN_CONF = 0.08;          // слабее этого фигура не рисуется: при яркости 0,85 даже тень в 3% выглядела пришедшим человеком
+const GHOST_MIN_ALPHA = 0.85;         // яркость точек при нулевой уверенности: при 20% фигуру должно быть видно (было 0,6, при 20% с размытием выходило 0,42)
+const GHOST_BLUR_MAX = 0.35;          // размытие при нулевой уверенности (было 0,5): слабая уверенность размывает, но фигура остаётся читаемой
+const LIE_DIM = 0.55;                 // лежащий сверху перекрывается плотнее: яркость точек приглушается, чтобы розовый не белел
+const GHOST_ALPHA_POWER = 1.8;        // степень кривой уверенность -> яркость: 50% светит втрое слабее 100%         // прозрачность призрака при нулевой уверенности; при 100% - полная
+const GHOST_GONE_CALM = 0.3, GHOST_GONE_BUSY = 0.5;   // доля цикла, когда точки нет: пропадают совсем и возвращаются в другом месте тела; дрожание линии увеличивает долю
+const TWINKLE_CYCLE_S = 3.0;          // цикл жизни точки призрака: видна, плавно исчезает, возвращается в другом месте фигуры
+const TWINKLE_EDGE = 0.1;             // доля цикла на плавное появление и исчезание
+const GHOST_POOL = 3000;              // точек фигуры в запасе: из них точка выбирает новое место при каждом цикле
+const SWIVEL_S = 60;                  // сидящий на стуле поворачивается к двери и обратно: смена раз в столько секунд
+const SWIVEL_EVERY = 3;               // из стольких смен одна лицом к двери, остальные лицом к столу
+const STAND_CHANGE_S = 35;            // стоящий меняет позу рук (руки опущены, скрещены, на поясе, за спиной, телефон, рука у волос): у каждого свой ритм
+const LIE_TURN_S = 120;               // спящий переворачивается: вариант позы меняется раз в столько секунд
+const LIE_BACK_EVERY = 3;             // из стольких смен одна на спине, остальные на боку
+const GHOST_LIMIT = 900;              // точек призрака не больше (слот облака - PTS)
+const GHOST_MOVE_ACTIVITY = 0.12;     // активность линии не слабее - в подписи «есть движение»
+const GHOST_PRESENT_ACT = 0.4;        // видимость призрака, пока устройство на месте и движения нет: один признак - тусклый, но не пропадает
+const POSE_TEXT = { stand: 'стоит', sit: 'сидит', lie: 'лежит' };
+const GHOST_BEHIND_M = 0.5;           // призрак стоит за устройством (дальше от роутера): человек сидит у своего телефона, а не в коридоре
+const AURA_SMOOTH_RATE = 3;           // скорость, с которой аура следует за активностью, 1/с
+const POINT_PX = 70;                  // размер точки в пикселях на единичном расстоянии; делится на удаление до камеры
+// Ориентация: смотрим с востока на запад, как из кабинета: справа зал (север), слева кухня (юг), вверху спальня (запад)
+const CAM_PRESETS = {                 // ракурсы клавишами 1-3: положение камеры относительно центра сцены
+  '1': { dir: [0.05, 1, 0], k: 1.2, fit: true },        // сверху: весь план в кадре, центр - середина плана
+  '2': { dir: [1.0, 0.9, 0.15], k: 1.0 },
+  '3': { dir: [1.0, 0.4, 0.0], k: 1.0 },
+};
+// Цвета сцены - токены каркаса (sam.css): днём те же имена дают тёмные варианты, applySceneTheme перекрашивает
+// Токен может быть выражением (color-mix, var): браузер считает его на пробном элементе, холст 1x1 отдаёт готовый rgb -
+// THREE.Color понимает только hex, rgb и имена цветов
+const probe = document.createElement('i'), probeInk = Object.assign(document.createElement('canvas'), { width: 1, height: 1 }).getContext('2d', { willReadFrequently: true });
+probe.style.display = 'none'; document.documentElement.append(probe);
+function cssHex(name) {
+  probe.style.color = `var(${name}, #000)`;
+  probeInk.clearRect(0, 0, 1, 1); probeInk.fillStyle = '#000'; probeInk.fillStyle = getComputedStyle(probe).color; probeInk.fillRect(0, 0, 1, 1);
+  const [r, g, b] = probeInk.getImageData(0, 0, 1, 1).data;
+  return '#' + [r, g, b].map(v => v.toString(16).padStart(2, '0')).join('');
+}
+const tokenColor = name => new THREE.Color(cssHex(name));
+const COLORS = { household: tokenColor('--amber'), guest: tokenColor('--ice'),
+                 unknown: tokenColor('--alarm'), pet: tokenColor('--pet') };
+const smooth = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
+
+// ── Сцена ───────────────────────────────────────────────────────────────────
+const canvas = document.getElementById('scene');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: false, alpha: false, powerPreference: 'high-performance' });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));   // сверх 1,5 - лишняя нагрузка без выигрыша для точек
+renderer.setClearColor(0x04060b);
+const scene = new THREE.Scene();
+scene.fog = new THREE.FogExp2(0x04060b, 0.028);
+
+/* Тема сцены из токенов каркаса: фон и туман - --r-ink, пол - --deck, линии зон - --haze, люди - свои цвета смысла.
+   Свечение точек ночью - сложение цветов (AdditiveBlending); на светлой бумаге сложение уходит в белое, поэтому днём
+   те же материалы смешиваются обычно, а их цвета темнеют до чернил. Перекраска - по смене data-theme и системной
+   темы, без перезагрузки сцены; новое после перестройки плана красится тем же вызовом. */
+const SCENE_TOKENS = { 0x04060b: '--r-ink', 0x0a1224: '--deck', 0x7f93bd: '--haze', 0xffc66d: '--amber' };
+const DAY_INK = 0.42;            // во сколько раз темнеют светящиеся точки плана днём: голубое на белом - в чернила
+// серый неуверенного человека днём - к бумаге: тёмный --haze, смешанный с цветом человека, давал розовому бурый оттенок
+const DAY_GHOST_PAPER = 0.7;     // 0,5 при уверенности 35% оставлял розовый лиловым (скриншот 15 окт)
+const cssColor = tokenColor;
+const isDay = () => cssColor('--r-ink').getHSL({}).l > 0.5;
+function themeMaterial(m, day) {
+  if (!m) return;
+  const u = m.userData;
+  if (u.samGlow === undefined) u.samGlow = m.blending === THREE.AdditiveBlending;
+  if (u.samGlow) { m.blending = day ? THREE.NormalBlending : THREE.AdditiveBlending; m.needsUpdate = true; }
+  const uc = m.uniforms?.uColor?.value;
+  if (uc && !Array.isArray(uc) && uc.isColor) {
+    u.samBase ??= uc.clone();
+    uc.copy(u.samBase); if (day) uc.multiplyScalar(DAY_INK);
+  }
+  if (m.color?.isColor && !m.map) {
+    u.samHex ??= m.color.getHex();
+    const token = SCENE_TOKENS[u.samHex];
+    if (token) m.color.copy(cssColor(token));
+  }
+}
+function applySceneTheme() {
+  const day = isDay(), ink = cssColor('--r-ink');
+  renderer.setClearColor(ink); scene.fog.color.copy(ink);
+  for (const [k, token] of [['household', '--amber'], ['guest', '--ice'], ['unknown', '--alarm'], ['pet', '--pet']]) {
+    COLORS[k].copy(cssColor(token));
+  }
+  trailCol.value.copy(cssColor('--ice')); GHOST_GREY.copy(cssColor('--haze')); if (day) GHOST_GREY.lerp(ink, DAY_GHOST_PAPER); uniforms.uDay.value = day ? 1 : 0;
+  scene.traverse(o => [].concat(o.material || []).forEach(m => themeMaterial(m, day)));
+}
+new MutationObserver(() => requestAnimationFrame(applySceneTheme))
+  .observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+matchMedia('(prefers-color-scheme: light)').addEventListener('change', () => requestAnimationFrame(applySceneTheme));
+const camera = new THREE.PerspectiveCamera(50, 1, 0.1, 200);
+const controls = new OrbitControls(camera, canvas);
+controls.zoomToCursor = true;                    // колесо приближает к месту под курсором, а не к центру сцены
+controls.enableDamping = true; controls.dampingFactor = 0.08; controls.maxPolarAngle = Math.PI / 2 - 0.02;
+controls.minDistance = 2; controls.maxDistance = 40;
+const world = new THREE.Group(); scene.add(world);          // планировка, предметы, зоны (перестраивается по hello)
+const labelsEl = []; let labelDefs = [];                    // подписи в DOM, позиции считаются из 3D каждый кадр
+
+function resize() {
+  const w = window.innerWidth, h = window.innerHeight;
+  renderer.setSize(w, h, false); camera.aspect = w / h; camera.updateProjectionMatrix();
+}
+window.addEventListener('resize', resize); resize();
+
+// ── Облако точек людей: один Points на все слоты, рассеивание считает видеокарта ──
+const MAXP = MAX_PEOPLE * PTS;
+const pos = new Float32Array(MAXP * 3), seed = new Float32Array(MAXP * 3), slotA = new Float32Array(MAXP), onA = new Float32Array(MAXP);
+for (let i = 0; i < MAXP; i++) {
+  slotA[i] = Math.floor(i / PTS);
+  const a = Math.random() * 6.2832, b = Math.acos(2 * Math.random() - 1), r = 0.4 + Math.random() * 0.6;
+  seed.set([r * Math.sin(b) * Math.cos(a), r * Math.cos(b), r * Math.sin(b) * Math.sin(a)], i * 3);
+}
+const geo = new THREE.BufferGeometry();
+geo.setAttribute('position', new THREE.BufferAttribute(pos, 3).setUsage(THREE.DynamicDrawUsage));
+geo.setAttribute('aSeed', new THREE.BufferAttribute(seed, 3));
+geo.setAttribute('aSlot', new THREE.BufferAttribute(slotA, 1));
+geo.setAttribute('aOn', new THREE.BufferAttribute(onA, 1).setUsage(THREE.DynamicDrawUsage));
+const uniforms = {
+  uTime: { value: 0 }, uPx: { value: POINT_PX * renderer.getPixelRatio() },
+  uDiffuse: { value: new Float32Array(MAX_PEOPLE) }, uAlive: { value: new Float32Array(MAX_PEOPLE) }, uTwinkle: { value: new Float32Array(MAX_PEOPLE) },
+  uColor: { value: Array.from({ length: MAX_PEOPLE }, () => tokenColor('--ice')) },
+  uDay: { value: 0 },                            // светлая тема: точки людей своего цвета, без затемнения свечения
+};
+const cloud = new THREE.Points(geo, new THREE.ShaderMaterial({
+  uniforms, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,   // свечение сложением; белое пятно у тесной фигуры снимает малая яркость одной точки GLOW_K, а «максимум» тонул в стенах
+  vertexShader: `
+    uniform float uTime; uniform float uPx;
+    uniform float uDiffuse[${MAX_PEOPLE}]; uniform float uAlive[${MAX_PEOPLE}]; uniform float uTwinkle[${MAX_PEOPLE}]; uniform vec3 uColor[${MAX_PEOPLE}];
+    attribute vec3 aSeed; attribute float aSlot; attribute float aOn;
+    varying vec3 vCol; varying float vA;
+    void main() {
+      // слот - атрибут, а массив по индексу из атрибута ANGLE на D3D разворачивает в огромные ветвления: компиляция
+      // шла 4,9 с при первом кадре (замер 15 окт). Цикл с постоянными границами индексирует массив счётчиком
+      int s = int(aSlot + 0.5);
+      float d = 0.0, tw = 0.0, alive = 0.0; vec3 col = vec3(0.0);
+      for (int i = 0; i < ${MAX_PEOPLE}; i++) {
+        if (i == s) { d = uDiffuse[i]; tw = uTwinkle[i]; alive = uAlive[i]; col = uColor[i]; }
+      }
+      float ph = uTime * 0.7 + aSeed.x * 6.2832;
+      // рассеивание: точки уходят по своему направлению, поднимаются дымом и гаснут; при d=0 стоят на месте
+      vec3 drift = aSeed * (2.2 * d * d) + vec3(sin(ph), 0.9 + 0.5 * sin(ph * 0.8), cos(ph * 1.1)) * 0.35 * d;
+      drift *= 1.0 - step(0.01, tw);                              // у призрака точки не разбрасываются: он исчезает и возвращается в другом месте, а не вылетает за контур
+      float cyc = uTime / ${TWINKLE_CYCLE_S.toFixed(2)} + fract(aSeed.y * 3.1 + aSeed.z * 5.7), f = fract(cyc), gone = tw;   // у каждой точки свой цикл; та же фаза считается на странице при выборе нового места
+      float vis = gone < 0.01 ? 1.0 : smoothstep(0.0, ${TWINKLE_EDGE.toFixed(2)}, f) * (1.0 - smoothstep(1.0 - gone - ${TWINKLE_EDGE.toFixed(2)}, 1.0 - gone, f));
+      vec4 mv = modelViewMatrix * vec4(position + drift, 1.0);
+      gl_Position = projectionMatrix * mv;
+      gl_PointSize = clamp(uPx * (1.0 + 0.8 * d) / -mv.z, 2.0, 40.0);
+      float hgt = clamp(position.y / 1.8, 0.0, 1.0);
+      vCol = col * (0.7 + 0.6 * hgt);                 // макушка ярче ступней: читается силуэт
+      vA = aOn * alive * (1.0 - 0.92 * d) * vis;
+    }`,
+  fragmentShader: `
+    uniform float uDay;
+    varying vec3 vCol; varying float vA;
+    void main() {
+      float r = length(gl_PointCoord - 0.5) * 2.0;
+      float a = (1.0 - smoothstep(0.5, 0.95, r)) * vA;     // чёткая точка с узким краем: призраки читаются чётче стен; edge0 < edge1, иначе smoothstep не определён
+      if (a < 0.01) discard;
+      // ночью цвет, умноженный на край точки: мягкое свечение сложением. Днём смешивание обычное и само умножает на a:
+      // второе умножение тянуло цвет к чёрному, розовый становился бурым
+      gl_FragColor = vec4(mix(vCol * a * ${GLOW_K.toFixed(2)}, vCol, uDay), a);
+    }`,
+}));
+cloud.frustumCulled = false; scene.add(cloud);
+
+// След движения: общий Points, прозрачность по возрасту точки следа
+const trailPos = new Float32Array(MAX_PEOPLE * TRAIL_N * 3), trailAge = new Float32Array(MAX_PEOPLE * TRAIL_N);
+const trailGeo = new THREE.BufferGeometry();
+trailGeo.setAttribute('position', new THREE.BufferAttribute(trailPos, 3).setUsage(THREE.DynamicDrawUsage));
+trailGeo.setAttribute('aAge', new THREE.BufferAttribute(trailAge, 1).setUsage(THREE.DynamicDrawUsage));
+const trailCol = { value: tokenColor('--ice') };
+scene.add(Object.assign(new THREE.Points(trailGeo, new THREE.ShaderMaterial({
+  uniforms: { uPx: uniforms.uPx }, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
+  vertexShader: `uniform float uPx; attribute float aAge; varying float vA;
+    void main(){ vec4 mv = modelViewMatrix * vec4(position,1.0); gl_Position = projectionMatrix * mv;
+      gl_PointSize = clamp(uPx * 0.35 / -mv.z, 1.0, 9.0); vA = aAge * 0.55; }`,
+  fragmentShader: `varying float vA; void main(){ float r = length(gl_PointCoord-0.5)*2.0; float a = (1.0 - smoothstep(0.2,1.0,r))*vA;
+      if (a < 0.01) discard; gl_FragColor = vec4(0.55,0.8,1.0,a); }`,
+})), { frustumCulled: false }));
+
+// Связи «человек - предмет»: штриховые линии, не больше слотов
+const linkGeo = new THREE.BufferGeometry();
+linkGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(MAX_PEOPLE * 6), 3).setUsage(THREE.DynamicDrawUsage));
+const links = new THREE.LineSegments(linkGeo, new THREE.LineDashedMaterial({ color: 0xffc66d, dashSize: 0.12, gapSize: 0.08, transparent: true, opacity: 0.7 }));
+links.frustumCulled = false; scene.add(links);
+
+// Аура активности Wi-Fi (режим rssi): облако вокруг роутера, оболочки расходятся быстрее и ярче при движении
+// в зоне связи; позиций людей RSSI не даёт, поэтому показывает активность, а не фигуры
+const auraSeed = new Float32Array(AURA_N * 3), auraPos = new Float32Array(AURA_N * 3);
+for (let i = 0; i < AURA_N; i++) {
+  const a = Math.random() * 6.2832, b = Math.acos(2 * Math.random() - 1);
+  auraSeed.set([Math.sin(b) * Math.cos(a), Math.cos(b) * 0.55, Math.sin(b) * Math.sin(a)], i * 3);   // сплюснутая сфера: потолок рядом
+  auraPos[i * 3] = Math.random();                                                                     // x - фаза оболочки
+}
+const auraGeo = new THREE.BufferGeometry();
+auraGeo.setAttribute('position', new THREE.BufferAttribute(auraPos, 3));
+auraGeo.setAttribute('aDir', new THREE.BufferAttribute(auraSeed, 3));
+const auraU = { uTime: uniforms.uTime, uPx: uniforms.uPx, uAct: { value: 0 }, uFade: { value: 1 }, uCenter: { value: new THREE.Vector3() } };
+const aura = new THREE.Points(auraGeo, new THREE.ShaderMaterial({
+  uniforms: auraU, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
+  vertexShader: `
+    uniform float uTime, uPx, uAct; uniform vec3 uCenter; attribute vec3 aDir; varying float vA; varying float vAct;
+    void main() {
+      float speed = 0.05 + 0.55 * uAct;
+      float ph = fract(position.x + uTime * speed);                    // 0 у роутера, 1 на границе ауры
+      vec3 p = uCenter + aDir * ${AURA_RADIUS_M.toFixed(1)} * ph;
+      p.y = max(0.05, p.y);
+      vec4 mv = modelViewMatrix * vec4(p, 1.0);
+      gl_Position = projectionMatrix * mv;
+      gl_PointSize = clamp(uPx * 0.3 * (0.6 + uAct) / -mv.z, 1.0, 6.0);
+      vA = pow(1.0 - ph, 2.2) * (0.03 + 0.20 * uAct); vAct = uAct;
+    }`,
+  fragmentShader: `
+    uniform float uFade; varying float vA; varying float vAct;
+    void main() {
+      float r = length(gl_PointCoord - 0.5) * 2.0;
+      float a = (1.0 - smoothstep(0.1, 1.0, r)) * vA * uFade;
+      if (a < 0.01) discard;
+      gl_FragColor = vec4(mix(vec3(0.35, 0.65, 1.0), vec3(1.0, 0.78, 0.4), vAct), a);
+    }`,
+}));
+aura.frustumCulled = false; aura.visible = false; scene.add(aura);
+// Устройства роутера: метка на условном расстоянии от роутера по силе сигнала; направление Wi-Fi с одного роутера
+// не даёт, угол берётся из отпечатка устройства и только разводит метки
+const devPos = new Float32Array(DEV_MAX * 3), devOn = new Float32Array(DEV_MAX), devHot = new Float32Array(DEV_MAX);
+const devGeo = new THREE.BufferGeometry();
+devGeo.setAttribute('position', new THREE.BufferAttribute(devPos, 3).setUsage(THREE.DynamicDrawUsage));
+devGeo.setAttribute('aOn', new THREE.BufferAttribute(devOn, 1).setUsage(THREE.DynamicDrawUsage));
+devGeo.setAttribute('aHot', new THREE.BufferAttribute(devHot, 1).setUsage(THREE.DynamicDrawUsage));
+const devPoints = new THREE.Points(devGeo, new THREE.ShaderMaterial({
+  uniforms: { uPx: uniforms.uPx, uTime: uniforms.uTime }, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
+  vertexShader: `uniform float uPx, uTime; attribute float aOn, aHot; varying float vA; varying float vHot;
+    void main() { vec4 mv = modelViewMatrix * vec4(position, 1.0); gl_Position = projectionMatrix * mv;
+      gl_PointSize = clamp(uPx * (1.5 + 0.8 * aHot) * (1.0 + 0.12 * sin(uTime * 3.0 + position.x * 4.0)) / -mv.z, 5.0, 36.0);
+      vA = aOn; vHot = aHot; }`,
+  fragmentShader: `varying float vA; varying float vHot;
+    void main() { float r = length(gl_PointCoord - 0.5) * 2.0; float a = (1.0 - smoothstep(0.1, 1.0, r)) * vA;
+      if (a < 0.02) discard; gl_FragColor = vec4(mix(vec3(0.45, 0.78, 1.0), vec3(1.0, 0.8, 0.45), vHot), a); }`,
+}));
+devPoints.frustumCulled = false; devPoints.visible = false; scene.add(devPoints);
+const devState = new Map();      // sid -> {slot, name, present, signal, target:Vector3, cur:Vector3, label, seenAgo, t0}
+
+function magnetToSurface(p, st) {        // точка устройства ложится на ближайшую поверхность (стол, кровать) не дальше DEV_MAGNET_M и липнет к прежней; рядом ничего - высота прежняя
+  const found = stickySurface(planElements, p.x, p.z, p.y, DEV_MAGNET_M, st.snap);
+  st.snap = found ? { x: found.x, z: found.z } : null;
+  if (found) p.set(found.x, found.top + DEV_REST_M, found.z);
+}
+function devRadius(db) { const k = Math.min(1, Math.max(0.12, (DEV_NEAR_DB - db) / (DEV_NEAR_DB - DEV_FAR_DB))); return AURA_RADIUS_M * k; }
+function devAngle(sid) { return (parseInt(sid.slice(0, 4), 16) / 65535) * Math.PI * 2; }
+function applyDevices(list) {
+  const seen = new Set(), c = auraU.uCenter.value;
+  for (const d of list) {
+    seen.add(d.id);
+    let st = devState.get(d.id);
+    if (!st) {
+      const used = new Set([...devState.values()].map(v => v.slot)); let slot = 0; while (used.has(slot)) slot++;
+      if (slot >= DEV_MAX) continue;
+      st = { slot, cur: new THREE.Vector3(c.x, 0.9, c.z), target: new THREE.Vector3(), hot: 0, last: d.signal_db };
+      st.label = addLabel('', 'object', () => (!st.noPoint && (st.present || (st.leftAt && Date.now() - st.leftAt < LEFT_LABEL_MS)) ? st.cur.clone().setY(st.cur.y + DEV_LABEL_LIFT_M) : null));
+      devState.set(d.id, st);
+    }
+    const a = devAngle(d.id), r = devRadius(d.signal_db);
+    const at = deviceTarget(d, ghosts.get(d.owner));                      // точка потока, иначе оценка по уровню, иначе хозяин
+    st.noPoint = !at;                                                    // нет точки: места нет и точку не рисуем
+    if (at) { const side = pushOut(at, [...ghosts.values()]); st.target.set(side.x, at.y, side.z); }          // не внутри фигуры человека: у тела
+    else st.target.set(c.x + Math.cos(a) * r, 0.9, c.z + Math.sin(a) * r * 0.8);
+    magnetToSurface(st.target, st);
+    st.hot = Math.min(1, Math.abs(d.signal_db - st.last) / 3 + st.hot * 0.5); st.last = d.signal_db;     // сигнал дёрнулся - метка вспыхивает
+    if (st.present && !d.present) { st.leftAt = Date.now(); st.hot = 1; }                                 // вышло из сети: вспышка и подпись на несколько секунд
+    st.present = d.present; st.name = d.name || ('устройство ' + d.id.slice(0, 4));
+    st.label.textContent = deviceLabel(st.name, d.signal_db, d.owner ? personOf(d.owner).name : null, d.present, !!(st.leftAt && Date.now() - st.leftAt < LEFT_LABEL_MS));       // чей телефон, имя, уровень
+  }
+  for (const [sid, st] of [...devState]) if (!seen.has(sid)) { st.label.remove(); labelDefs = labelDefs.filter(l => l.el !== st.label); devState.delete(sid); devOn[st.slot] = 0; }
+  renderDevicePanel(list);
+}
+function renderDevicePanel(list) {
+  const el = document.getElementById('devs'); if (!el) return;
+  el.replaceChildren(...list.slice(0, 12).map(d => {
+    const row = document.createElement('div'); row.className = d.present ? 'dev on' : 'dev';
+    const near = { near: 'рядом с роутером', mid: 'в квартире', far: 'далеко или за стеной' }[d.closeness];
+    const ago = d.present ? 'сейчас' : (d.seen_ago_s < 90 ? 'только что' : Math.round(d.seen_ago_s / 60) + ' мин назад');
+    const where = (d.where || []).map(w => `${w.place} ${Math.round(w.p * 100)}%`).join(', ');          // места по уровню сигнала: что решил радар и насколько уверенно
+    row.textContent = `${d.name || 'устройство ' + d.id.slice(0, 4)} - ${d.present ? near : 'был ' + near}, ${ago}${where ? ', по уровню: ' + where : ''}`;
+    return row;
+  }));
+}
+// Призраки (режим rssi): по одному на человека из identities шлюза (кто где по свидетельствам разных каналов, presence_fuse). Силуэт точками
+// по полу человека из плана (figure.js): мальчик голубой, девочка розовая, голова, плечи, грудь, руки, ноги; поза по месту: сидит на сиденье,
+// лежит на матрасе, стоит на полу. Уверенность - цвет и резкость: чем выше, тем ярче цвет и чётче точки; низкая - серый и размытый.
+// Призрак не исчезает, пока у шлюза есть хоть один признак. Точки стоят на месте: дрожание на каждом кадре читалось миганием
+const ghosts = new Map();       // имя человека -> {slot, n, key, conf, cx, cz, pose, face, gender, color, label, text}
+// Люди дома приходят в плане (`layout.people` из data/, не из репозитория): имя, пол, цвет, рост и вес; страница знает только безымянного по умолчанию.
+const UNKNOWN_PERSON = { gender: 'male', get color() { return cssHex('--r-text'); } };   // кто-то ещё - цвет текста темы
+const GHOST_GREY = tokenColor('--haze');   // цвет при нулевой уверенности
+const PHALLUS_STATE_S = 300, PHALLUS_ERECT_EVERY = 10;   // раз в 5 минут решается, как он: из десяти решений одно «встал» (редко), и тогда стоит все 5 минут; остальные висит
+const figureCache = new Map();
+function figureKey(gender, pose, variant, limit, phallus, body = {}) { return [gender, pose, variant, limit, phallus, body.height, body.weight].join('|'); }
+function figureOf(gender, pose, variant, limit = GHOST_LIMIT, phallus = false, body = {}) {      // body: {height, weight} конкретного человека
+  const key = figureKey(gender, pose, variant, limit, phallus, body);
+  if (!figureCache.has(key)) figureCache.set(key, figurePoints(gender, pose, limit, variant, { phallus, height: body.height, weight: body.weight }));
+  return figureCache.get(key);
+}
+const phallusForced = new Set();     // кого панель отладки держит в erect принудительно (галка в разделе человека)
+function phallusState(g) {            // hang почти всегда, erect редко; у каждого свой ритм по имени
+  if (phallusForced.has(g.person)) return 'erect';
+  const bucket = Math.floor(Date.now() / 1000 / PHALLUS_STATE_S) + [...g.name].reduce((a, ch) => a + ch.charCodeAt(0), 0);
+  return bucket % PHALLUS_ERECT_EVERY === 0 ? 'erect' : 'hang';
+}
+function personOf(id) { return { ...UNKNOWN_PERSON, name: id, ...(layout?.people?.[id] || {}) }; }
+function resetGhosts() { ghosts.clear(); for (let s = GHOST_FIRST; s < MAX_PEOPLE; s++) uniforms.uAlive.value[s] = 0; }
+function updateGhosts(list, dt) {
+  ghosts.forEach(g => { g.seen = false; });
+  for (const id of list || []) {
+    if (id.x == null || id.z == null) continue;                              // кто - знаем, где - нет: рисовать нечего
+    let g = ghosts.get(id.person);
+    if (!g) {
+      const used = new Set([...ghosts.values()].map(v => v.slot)); let slot = GHOST_FIRST; while (used.has(slot)) slot++;
+      if (slot >= MAX_PEOPLE) continue;
+      const who = personOf(id.person);
+      g = { slot, person: id.person, n: 0, key: '', cx: id.x, cz: id.z, conf: 0, text: '', gender: who.gender, name: who.name, phallus: !!who.phallus, body: { height: who.height_cm, weight: who.weight_kg }, color: new THREE.Color(who.color) };
+      g.label = addLabel('', 'person', () => g.conf > 0.05 ? new THREE.Vector3(g.cx, 2.0, g.cz) : null);
+      ghosts.set(id.person, g);
+    }
+    g.seen = true; g.hugSide = id.hug_side || 0; g.walking = !!id.walking && !id.blocked_ahead; g.pose = id.pose || supportPose(planElements, id.x, id.z) || 'stand'; g.target = id.confidence; g.act = id.activity ?? 0;
+    const door = g.pose === 'sit' ? swivelFace(planElements, id.x, id.z) : null, bucket = Math.floor(Date.now() / 1000 / SWIVEL_S) + [...g.name].reduce((a, ch) => a + ch.charCodeAt(0), 0);
+    const faceTo = door !== null && bucket % SWIVEL_EVERY === 0 ? door : (id.face ?? 0);                               // иногда к двери, чаще к столу
+    g.face = faceTo;                                                                          // сразу: плавной докрутки нет, разворот - переход состояния
+    g.cx = id.x; g.cz = id.z;                                                                      // центр встаёт сразу: плавного скольжения нет, точки летят сами
+    g.text = `${g.name} · ${Math.round(id.confidence * 100)}%, условно ${POSE_TEXT[g.pose] || POSE_TEXT.stand}`;            // устройства подписываются у своих точек, не у человека
+  }
+  ghosts.forEach(g => {
+    if (!g.seen) g.target = 0;
+    g.conf += ((g.target ?? 0) - g.conf) * (1 - Math.exp(-3 * dt));
+    g.live = (g.live ?? 0) + ((g.act ?? 0) - (g.live ?? 0)) * (1 - Math.exp(-2 * dt));           // живость плавно следует за дрожанием линии
+    uniforms.uTwinkle.value[g.slot] = GHOST_GONE_CALM + (GHOST_GONE_BUSY - GHOST_GONE_CALM) * Math.min(1, g.live * 2);
+  });
+}
+function drawGhosts(dt) {
+  for (const g of ghosts.values()) {
+    if (g.conf <= GHOST_MIN_CONF) {
+      uniforms.uAlive.value[g.slot] = 0; if (g.label) g.label.textContent = '';
+      g.cur = null; g.state = null; g.sx = undefined; g.flight = null; g.wasWalking = false;       // исчез: старые координаты точек забыты, вернётся - появится на месте, а не прилетит издалека
+      continue;
+    }
+    const turn = Math.floor(Date.now() / 1000 / LIE_TURN_S) + [...g.name].reduce((a, ch) => a + ch.charCodeAt(0), 0);      // у каждого свой ритм: не переворачиваются разом
+    const stand = STAND_VARIANTS[(Math.floor(Date.now() / 1000 / STAND_CHANGE_S) + [...g.name].reduce((a, ch) => a + ch.charCodeAt(0), 0)) % STAND_VARIANTS.length];
+    const stepping = g.pose === 'stand' && g.walking;      // шаговая поза только пока сервер говорит «идёт»; у входа, в ванной, на месте - обычная стойка
+    const variant = g.pose === 'lie' ? (g.hugSide ? (g.hugSide > 0 ? 'hug' : 'hugR') : turn % LIE_BACK_EVERY === 0 ? 'back' : 'side') : stepping ? STRIDE_VARIANTS[g.hops % 2] : g.pose === 'stand' ? stand : 'side';
+    const fig = figureOf(g.gender, g.pose, variant, GHOST_LIMIT, g.phallus && phallusState(g), g.body), pool = figureOf(g.gender, g.pose, variant, GHOST_POOL, g.phallus && phallusState(g), g.body), base = g.slot * PTS * 3, c = Math.cos(g.sf ?? g.face), s = Math.sin(g.sf ?? g.face), top = surfaceAt(planElements, g.cx, g.cz);
+    const lift = g.pose === 'sit' ? Math.max(0, top - SEAT_Y) : g.pose === 'lie' ? top : 0;   // сидит на сиденье, лежит на матрасе, стоит на полу
+    if (!g.local) { g.local = fig.slice(); g.cycle = new Int32Array(PTS).fill(-1); }
+    g.figKey = figureKey(g.gender, g.pose, variant, GHOST_LIMIT, g.phallus && phallusState(g), g.body);
+    if (g.fig !== fig) {                                   // другая поза или вариант: точки не перекидываются разом (это был «фейерверк»), каждая сменит место на своём следующем цикле, пока невидима
+      g.local = fig.slice();                              // цели всех точек - в новую позу разом: по одной (в свой цикл мерцания) давало «две модели» на время перехода
+      g.mid = [0, 1, 2].map(a => fig.reduce((sum, q) => sum + q[a], 0) / fig.length); g.rad = Math.max(1e-3, ...fig.map(q => Math.hypot(q[0] - g.mid[0], q[1] - g.mid[1], q[2] - g.mid[2])));   // центр тела и его размах: от них темп точки
+      g.perm = null;                                      // другая поза: новые случайные цели
+      g.groupsFrom = g.groups ?? null; g.groups = fig.map(q => q[3]);        // части тела прежней и новой позы: точка летит в ту же часть
+      g.fig = fig; for (let j = 0; j < PTS; j++) onA[g.slot * PTS + j] = j < fig.length ? 1 : 0; g.n = fig.length; geo.attributes.aOn.needsUpdate = true;
+    }
+    const clock = uniforms.uTime.value / TWINKLE_CYCLE_S, nowMs = performance.now();
+    if (!g.cur) g.cur = new Float32Array(PTS * 3).fill(NaN);
+    if (!g.perm || g.perm.length !== fig.length) g.perm = assignTargets(g.groups, g.groups, Math.random);      // цели - случайные места новой позы; перестановка своя на каждый рывок и смену позы
+    const state = { x: g.cx, z: g.cz, face: g.face, figKey: g.figKey };                  // единое место, где решается, что изменение - переход состояния
+    const changes = transitionsBetween(g.state, state), flies = flightFor(changes, g.walking || g.wasWalking);      // рой - только смена места на ходу
+    g.wasWalking = g.walking;
+    if (flies) { g.newFlight = true; g.hops = (g.hops ?? 0) + 1; g.hopAt = nowMs; }              // шаги идущего: на остановках шаговая поза
+    g.state = state;
+    if (g.sx === undefined || flies || g.walking || !slides(g.cx - g.sx, g.cz - g.sz)) { g.sx = g.cx; g.sz = g.cz; g.sf = g.face; }      // дальний прыжок без ходьбы - сразу, а не скольжением сквозь стены    // на ходу и в перелёте центр встаёт сразу: точки летят сами
+    else {                                                                                      // иначе разворот и сдвиг на месте плавные
+      const slide = 1 - Math.exp(-SLIDE_RATE * dt);
+      g.sx += (g.cx - g.sx) * slide; g.sz += (g.cz - g.sz) * slide; g.sf = smoothAngle(g.sf, g.face, TURN_RATE, dt);
+    }
+    if (g.newFlight) {                                                                 // скачок центра: точки разлетаются независимыми пролётами
+      g.newFlight = false; g.perm = assignTargets(g.groupsFrom ?? g.groups, g.groups, Math.random); g.groupsFrom = null;     // случайно, но голова в голову, руки в руки
+      const edge = new Float32Array(fig.length);
+      for (let i = 0; i < fig.length; i++) { const q = g.local[g.perm[i]]; edge[i] = Math.min(1, Math.hypot(q[0] - g.mid[0], q[1] - g.mid[1], q[2] - g.mid[2]) / g.rad); }
+      g.flight = planFlight(fig.length, edge, nowMs, g.cur);
+    }
+    const inFlight = g.flight && nowMs < g.flight.endMs;
+    for (let i = 0; i < fig.length; i++) {
+      const gi = (g.slot * PTS + i) * 3, cyc = Math.floor(clock + ((seed[gi + 1] * 3.1 + seed[gi + 2] * 5.7) % 1 + 1) % 1);   // та же фаза, что в шейдере
+      if (g.cycle[i] !== cyc) { g.cycle[i] = cyc; g.local[i] = pool[Math.floor(Math.random() * pool.length)]; }               // новый цикл: точка (невидимая) перескакивает в случайное место тела
+      const [fw, y, sd] = g.local[g.perm[i]], base3 = base + i * 3, k3 = i * 3;                           // цель - случайное место тела, не «своё по номеру»
+      const gx = (g.sx ?? g.cx) + fw * c - sd * s, gy = lift + y, gz = (g.sz ?? g.cz) + fw * s + sd * c;                       // куда точка должна встать
+      if (Number.isNaN(g.cur[k3])) { g.cur[k3] = gx; g.cur[k3 + 1] = gy; g.cur[k3 + 2] = gz; }            // первое появление - сразу на месте
+      else if (inFlight) evalFlight(g.flight, i, g.cur, k3, gx, gy, gz, nowMs);                              // в рывке: свой пролёт каждой точки
+      else { g.cur[k3] = gx; g.cur[k3 + 1] = gy; g.cur[k3 + 2] = gz; }                                       // на месте и в паузе: точка стоит на цели, мерцание тела как раньше
+      pos[base3] = g.cur[k3]; pos[base3 + 1] = g.cur[k3 + 1]; pos[base3 + 2] = g.cur[k3 + 2];
+    }
+    uniforms.uColor.value[g.slot].copy(GHOST_GREY).lerp(g.color, g.conf);                  // уверенность - цвет
+    uniforms.uAlive.value[g.slot] = (g.pose === 'lie' ? LIE_DIM : 1) * (GHOST_MIN_ALPHA + (1 - GHOST_MIN_ALPHA) * Math.min(1, g.conf) ** GHOST_ALPHA_POWER);   // и яркость точек: при 50% заметно тусклее, чем при 100%
+    uniforms.uDiffuse.value[g.slot] = GHOST_BLUR_MAX * (1 - Math.min(1, g.conf * 1.5));                 // и резкость: слабая уверенность - размытый
+    g.label.textContent = g.conf > 0.05 ? g.text : '';
+  }
+}
+let lastDevices = [], fieldPlane = null, fieldCanvas = null, fieldTexture = null, fieldAt = 0;   // слои вероятности: последние устройства кадра, плоскость и холст
+let ghostList = null;      // identities шлюза: кто где и насколько уверены
+let auraState = null;     // {act, target, age0, t0, stations, active}
+
+// ── Планировка, предметы, зоны ──────────────────────────────────────────────
+let focus = { x: 0, z: 0 }, layout = null, bbox = null, zones = [], heatPlane = null, heatTex = null, heatInfo = null, objectById = {};
+let stale = 1.5, lost = 8;
+
+const RENDER_ORDER = { floor: 0, heat: 1, prints: 2, zone: 2, wall: 3, people: 4 };   // прозрачные слои рисуются в этом порядке, а не по расстоянию до камеры: иначе пол мигает при вращении
+cloud.renderOrder = RENDER_ORDER.people; cloud.material.depthTest = false;       // люди и призраки поверх всего: стены их не закрывают и порядок не мигает под разными углами
+devPoints.renderOrder = RENDER_ORDER.people; devPoints.material.depthTest = false;       // точки устройств, как люди, поверх блоков плана: с некоторых ракурсов стол или стена прятали телефон
+const planView = new PlanView(THREE, { uPx: uniforms.uPx, renderer, order: RENDER_ORDER }); scene.add(planView.group);
+let onFloor = () => true;
+let planElements = [];                // элементы плана: опора под призраком              // здесь пол (по плану от шлюза); кладёт buildWorld
+function ordered(obj, n) { obj.traverse(o => { o.renderOrder = n; }); return obj; }
+function clearGroup(g) { while (g.children.length) { const c = g.children.pop(); c.traverse(o => { o.geometry?.dispose(); o.material?.dispose?.(); }); } }
+let labelsDirty = true;
+function addLabel(text, cls, getPos, at = null) {      // at - {x, z, kind}: неподвижная подпись плана, участвует в поиске дублей
+  const el = document.createElement('div'); el.className = 'lab ' + cls; el.textContent = text; document.body.appendChild(el);
+  labelsEl.push(el); labelDefs.push({ el, getPos, dup: at ? { key: labelKey(text), prio: LABEL_PRIO[at.kind], x: at.x, z: at.z } : null }); labelsDirty = true;
+  return el;
+}
+function refreshHiddenLabels() {                       // раз при изменении набора подписей, не каждый кадр
+  const items = labelDefs.filter(l => l.dup), hidden = hiddenLabels(items.map(l => l.dup));
+  labelDefs.forEach(l => { l.hidden = false; }); items.forEach((l, i) => { l.hidden = hidden.has(i); }); labelsDirty = false;
+}
+function resetLabels() { labelsEl.forEach(e => e.remove()); labelsEl.length = 0; labelDefs = []; labelsDirty = true; }
+
+function buildWorld() {
+  clearGroup(world); resetLabels(); resetGhosts(); objectById = {};
+  let minX = 1e9, minZ = 1e9, maxX = -1e9, maxZ = -1e9;
+  for (const r of layout.rooms) { minX = Math.min(minX, r.x); minZ = Math.min(minZ, r.z); maxX = Math.max(maxX, r.x + r.w); maxZ = Math.max(maxZ, r.z + r.d); }
+  bbox = { minX, minZ, maxX, maxZ, cx: (minX + maxX) / 2, cz: (minZ + maxZ) / 2, w: maxX - minX, d: maxZ - minZ };
+  const home = layout.rooms.find(r => /кабинет/i.test(r.title || ''));       // центр сцены - кабинет, нет его - середина плана
+  focus = home ? { x: home.x + home.w / 2, z: home.z + home.d / 2 } : { x: bbox.cx, z: bbox.cz };
+  requestAnimationFrame(applySceneTheme);        // перестроенный план - в цветах текущей темы
+  planView.build(layout); onFloor = makeOnFloor(layout.floor, layout.rooms); planElements = elementsFromLayout(layout);   // план исходный, остальное его выдавливание
+  for (const r of layout.rooms) {
+    if (!layout.floor) {                                      // нет плана со стенами: пол прямоугольниками комнат
+    const floor = new THREE.Mesh(new THREE.PlaneGeometry(r.w, r.d), new THREE.MeshBasicMaterial({ color: 0x0a1224, transparent: true, opacity: 0.85, depthWrite: false }));
+    floor.rotation.x = -Math.PI / 2; floor.position.set(r.x + r.w / 2, 0, r.z + r.d / 2); floor.renderOrder = RENDER_ORDER.floor; world.add(floor);
+    if (!layout.walls?.length) { const o = new THREE.LineLoop(new THREE.BufferGeometry().setFromPoints([[r.x, 0.01, r.z], [r.x + r.w, 0.01, r.z], [r.x + r.w, 0.01, r.z + r.d], [r.x, 0.01, r.z + r.d]].map(q => new THREE.Vector3(...q))), new THREE.LineBasicMaterial({ color: 0x3d5a9e, transparent: true, opacity: 0.8 })); world.add(ordered(o, RENDER_ORDER.wall)); }   // стен нет - контур комнаты на полу, без коробки с потолком
+    }
+    addLabel(r.title || r.id, 'room', () => new THREE.Vector3(r.x + r.w / 2, 0.05, r.z + r.d / 2 - r.d * 0.32), { kind: 'room', x: r.x + r.w / 2, z: r.z + r.d / 2 - r.d * 0.32 });
+  }
+  for (const o of layout.objects || []) {
+    objectById[o.id] = o;
+    if (o.kind !== 'opening' && o.w * o.d > 0.5) addLabel((o.title || o.id).replace(/ \(примерно\)$/, ''), 'object', () => new THREE.Vector3(o.x + o.w / 2, o.h + 0.12, o.z + o.d / 2), { kind: 'object', x: o.x + o.w / 2, z: o.z + o.d / 2 });   // подписи только у крупного; «примерно» видно по пунктиру на плане
+  }
+  if (layout.router) addLabel('роутер', 'object', () => new THREE.Vector3(layout.router.x, layout.router.h + 0.25, layout.router.z));   // висит на стене
+  for (const p of layout.places || []) addLabel(p.label, 'zone', () => new THREE.Vector3(p.x, 0.5, p.z), { kind: 'place', x: p.x, z: p.z });   // места из плана, не из трека
+  buildZones();
+  const span = Math.max(bbox.w, bbox.d);
+  const router = layout.router || (layout.objects || []).find(o => /router|роутер/i.test(o.id + ' ' + (o.title || '')));
+  auraU.uCenter.value.set(router ? (router.x + (router.w || 0) / 2) : bbox.cx, router ? Math.max(1.2, (router.h || 0) * 0.8) : 1.2, router ? (router.z + (router.d || 0) / 2) : bbox.cz);
+  controls.target.set(focus.x, 0.6, focus.z); controls.maxDistance = span * 4;
+  flyTo(new URLSearchParams(location.search).get('view') || '2', true);   // ?view=1 - сверху, 3 - сбоку
+}
+function buildZones() {
+  dbgZoneList();
+  world.children.filter(c => c.userData.zone).forEach(c => { world.remove(c); c.geometry.dispose(); c.material.dispose(); });
+  labelDefs = labelDefs.filter(l => { if (l.zone) { l.el.remove(); return false; } return true; }); labelsDirty = true;
+  for (const z of zones) {
+    const g = new THREE.BufferGeometry().setFromPoints([[z.x, 0.03, z.z], [z.x + z.w, 0.03, z.z], [z.x + z.w, 0.03, z.z + z.d], [z.x, 0.03, z.z + z.d]].map(p => new THREE.Vector3(...p)));
+    const loop = new THREE.LineLoop(g, new THREE.LineBasicMaterial({ color: ZONE_LINE_COLOR, transparent: true, opacity: ZONE_LINE_OPACITY })); loop.userData.zone = true; loop.renderOrder = RENDER_ORDER.zone; world.add(loop);
+    const el = addLabel(z.label, 'zone', () => new THREE.Vector3(z.x + z.w / 2, 0.1, z.z + z.d / 2), { kind: 'zone', x: z.x + z.w / 2, z: z.z + z.d / 2 }); labelDefs[labelDefs.length - 1].zone = z.id;
+    el.title = 'Alt и щелчок - убрать подпись'; el.style.pointerEvents = 'auto'; el.dataset.zone = z.id;
+  }
+}
+
+// ── Карта посещений: текстура пола ──────────────────────────────────────────
+function applyHeat(h) {
+  if (!layout || !h) return;
+  const cell = h.cell_m, i0 = Math.floor(bbox.minX / cell), i1 = Math.ceil(bbox.maxX / cell), k0 = Math.floor(bbox.minZ / cell), k1 = Math.ceil(bbox.maxZ / cell);
+  const W = i1 - i0, H = k1 - k0, cells = capCells(trailCells(h.cells.filter(([i, k]) => onFloor((i + 0.5) * cell, (k + 0.5) * cell)))), field = heatField(cells, i0, k0, W, H), data = new Uint8Array(field.w * field.h * 4), px = cell / HEAT_UP;
+  heatCell = cell; heatT = heatScale(Array.from(field.values), HEAT_FIELD_FLOOR_S); heatValue = new Map(cells.map(([i, k, v]) => [i + ',' + k, v]));
+  for (let y = 0; y < field.h; y++) for (let x = 0; x < field.w; x++) {                    // непрерывное поле: пиксель в пять раз мельче клетки, края зон плавные
+    const t = heatT(field.values[y * field.w + x]); if (t === null || !onFloor(i0 * cell + (x + 0.5) * px, k0 * cell + (y + 0.5) * px)) continue;   // шум и не-пол не рисуются
+    const o = ((field.h - 1 - y) * field.w + x) * 4, c = heatColor(t);                    // строка 0 - дальний край по z
+    data[o] = c[0]; data[o + 1] = c[1]; data[o + 2] = c[2]; data[o + 3] = (HEAT_ALPHA[0] + HEAT_ALPHA[1] * t) * Math.min(1, t / HEAT_FADE_T);   // чаще ходили - краснее, реже - синее
+  }
+  if (heatPlane) { world.remove(heatPlane); heatPlane.geometry.dispose(); heatPlane.material.map.dispose(); heatPlane.material.dispose(); }
+  heatTex = new THREE.DataTexture(data, field.w, field.h, THREE.RGBAFormat); heatTex.magFilter = THREE.LinearFilter; heatTex.minFilter = THREE.LinearFilter; heatTex.needsUpdate = true;
+  heatPlane = new THREE.Mesh(new THREE.PlaneGeometry(W * cell, H * cell), new THREE.MeshBasicMaterial({ map: heatTex, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }));
+  heatPlane.rotation.x = -Math.PI / 2; heatPlane.position.set((i0 + W / 2) * cell, 0.012, (k0 + H / 2) * cell); heatPlane.renderOrder = RENDER_ORDER.heat; world.add(heatPlane);
+  applySteps(h, i0, k0, W, H, cell);
+  recolorPrints();
+  applyFloorVisibility();
+}
+function applySteps(h, i0, k0, W, H, cell) {       // слой шагов: та же гладкая заливка, другой тон; яркость - от абсолютной свежести, поэтому старые шаги гаснут
+  if (stepsPlane) { world.remove(stepsPlane); stepsPlane.geometry.dispose(); stepsPlane.material.map.dispose(); stepsPlane.material.dispose(); stepsPlane = null; }
+  const cells = (h.steps || []).filter(([i, k]) => onFloor((i + 0.5) * cell, (k + 0.5) * cell));
+  if (!cells.length) return;
+  const field = heatField(cells, i0, k0, W, H), data = new Uint8Array(field.w * field.h * 4), px = cell / HEAT_UP;
+  for (let y = 0; y < field.h; y++) for (let x = 0; x < field.w; x++) {
+    const v = field.values[y * field.w + x]; if (v < HEAT_FIELD_FLOOR_S || !onFloor(i0 * cell + (x + 0.5) * px, k0 * cell + (y + 0.5) * px)) continue;
+    const o = ((field.h - 1 - y) * field.w + x) * 4;
+    data[o] = STEPS_RGB[0]; data[o + 1] = STEPS_RGB[1]; data[o + 2] = STEPS_RGB[2]; data[o + 3] = STEPS_ALPHA * Math.min(1, v / STEPS_FULL_S);
+  }
+  const tex = new THREE.DataTexture(data, field.w, field.h, THREE.RGBAFormat); tex.magFilter = THREE.LinearFilter; tex.minFilter = THREE.LinearFilter; tex.needsUpdate = true;
+  stepsPlane = new THREE.Mesh(new THREE.PlaneGeometry(W * cell, H * cell), new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }));
+  stepsPlane.rotation.x = -Math.PI / 2; stepsPlane.position.set((i0 + W / 2) * cell, 0.016, (k0 + H / 2) * cell); stepsPlane.renderOrder = RENDER_ORDER.heat; world.add(stepsPlane);
+}
+
+// ── Люди: слоты, догонялка к кадру источника, возраст данных ────────────────
+const slots = [];     // {id, target Float32Array(PTS*3), n, born, age0, t0, kind, identity, who, label, trail:[], lastC}
+const slotOf = new Map();
+function freeSlot() { for (let i = 0; i < GHOST_FIRST; i++) if (!slots[i]) return i; return -1; }
+
+let stoppedAt = 0, pausedTotalMs = 0;           // стоп времени: сколько стоим сейчас и сколько простояли за всё время
+const timeStopped = () => stoppedAt > 0;
+function sceneNow() { return performance.now() - pausedTotalMs - (stoppedAt ? performance.now() - stoppedAt : 0); }       // часы сцены не идут на паузе: возраст людей и аура не растут, люди не тают
+function applyFrame(msg) {
+  const now = sceneNow();
+  if (msg.signal) {
+    auraState = { target: msg.signal.activity, act: auraState ? auraState.act : 0, age0: msg.signal.age_s ?? lost, t0: now,
+                  stations: msg.signal.stations, active: msg.signal.active };
+    aura.visible = true; devPoints.visible = true;
+    if (msg.devices) { applyDevices(msg.devices); lastDevices = msg.devices; }
+    if (msg.identities) ghostList = msg.identities;
+    drawFields();
+    if (!msg.people.length) document.getElementById('count').textContent =
+      `активность по Wi-Fi ${Math.round(msg.signal.activity * 100)}%, устройств: ${msg.signal.stations}`;
+  }
+  const seen = new Set();
+  for (const p of msg.people) {
+    seen.add(p.id);
+    let i = slotOf.get(p.id);
+    if (i === undefined) {
+      i = freeSlot(); if (i < 0) continue;
+      slotOf.set(p.id, i);
+      slots[i] = { id: p.id, target: new Float32Array(PTS * 3), n: 0, fresh: true, trail: [], lastC: null };
+      slots[i].label = addLabel('', 'person', () => slots[i] && slots[i].c ? new THREE.Vector3(slots[i].c[0], 2.05, slots[i].c[2]) : null);
+    }
+    const s = slots[i], n = Math.min(p.points.length, PTS);
+    for (let j = 0; j < n; j++) s.target.set(p.points[j], j * 3);
+    if (s.fresh) { pos.set(s.target.subarray(0, n * 3), i * PTS * 3); s.fresh = false; }
+    if (s.n !== n) { for (let j = 0; j < PTS; j++) onA[i * PTS + j] = j < n ? 1 : 0; geo.attributes.aOn.needsUpdate = true; s.n = n; }
+    Object.assign(s, { age0: p.age_s, t0: now, kind: p.kind, identity: p.identity, who: p.who, zone: p.zone, room: p.room });
+    uniforms.uColor.value[i].copy(p.kind === 'pet' ? COLORS.pet : (COLORS[p.identity] || COLORS.guest));
+    const c = [0, 0, 0]; for (let j = 0; j < n; j++) { c[0] += p.points[j][0]; c[2] += p.points[j][2]; } c[0] /= n; c[2] /= n; s.c = c;
+    pushTrail(s, i, c);
+    const place = p.zone || (layout.rooms.find(r => r.id === p.room)?.title) || '';
+    const who = p.kind === 'pet' ? 'питомец' : p.who ? p.who : p.identity === 'unknown' ? 'чужой' : 'гость';
+    s.label.textContent = place ? `${who} · ${place}` : who;
+  }
+  const lk = new Float32Array(MAX_PEOPLE * 6); let m = 0;
+  for (const l of msg.links || []) {
+    const i = slotOf.get(l.person), o = objectById[l.object]; if (i === undefined || !o || !slots[i]?.c) continue;
+    lk.set([slots[i].c[0], 0.9, slots[i].c[2], o.x + o.w / 2, o.h * 0.6, o.z + o.d / 2], m * 6); m++;
+  }
+  linkGeo.attributes.position.array.set(lk); linkGeo.attributes.position.needsUpdate = true; linkGeo.setDrawRange(0, m * 2);
+  links.computeLineDistances(); links.visible = m > 0;
+  if (msg.signal && !msg.people.length) return;                  // режим rssi: строку про активность уже вывели выше
+  const people = msg.people.filter(p => p.kind !== 'pet').length, pets = msg.people.length - people;
+  document.getElementById('count').textContent = `${people} ${people === 1 ? 'человек' : 'людей'}${pets ? `, питомцев: ${pets}` : ''}`;
+}
+function pushTrail(s, i, c) {
+  if (s.lastC && Math.hypot(c[0] - s.lastC[0], c[2] - s.lastC[2]) < TRAIL_STEP_M) return;
+  s.lastC = c.slice(); s.trail.push([c[0], 0.04, c[2]]); if (s.trail.length > TRAIL_N) s.trail.shift();
+  const base = i * TRAIL_N;
+  for (let j = 0; j < TRAIL_N; j++) {
+    const p = s.trail[j - (TRAIL_N - s.trail.length)];
+    if (p) { trailPos.set(p, (base + j) * 3); trailAge[base + j] = (j - (TRAIL_N - s.trail.length) + 1) / s.trail.length; } else trailAge[base + j] = 0;
+  }
+  trailGeo.attributes.position.needsUpdate = true; trailGeo.attributes.aAge.needsUpdate = true;
+}
+function dropSlot(i) {
+  const s = slots[i]; if (!s) return;
+  slotOf.delete(s.id); s.label.remove(); labelDefs = labelDefs.filter(l => l.el !== s.label); slots[i] = undefined;
+  uniforms.uAlive.value[i] = 0; for (let j = 0; j < TRAIL_N; j++) trailAge[i * TRAIL_N + j] = 0;
+  trailGeo.attributes.aAge.needsUpdate = true;
+}
+
+// ── Камера: ракурсы и покой ─────────────────────────────────────────────────
+let camTween = null, lastTouch = performance.now();
+function flyTo(key, instant) {
+  const pr = CAM_PRESETS[key]; if (!pr || !bbox) return;
+  const centre = pr.fit ? { x: bbox.cx, z: bbox.cz } : focus, dir = new THREE.Vector3(...pr.dir).normalize();
+  const span = pr.fit ? fitDistance({ dir: dir.toArray(), bbox, fovDeg: camera.fov, aspect: camera.aspect }) : Math.max(bbox.w, bbox.d) * pr.k + 3;
+  controls.target.set(centre.x, 0.6, centre.z);                                    // у остальных ракурсов центр - кабинет
+  const to = new THREE.Vector3(centre.x, 0.6, centre.z).add(dir.multiplyScalar(span));
+  if (instant) { camera.position.copy(to); controls.update(); return; }
+  camTween = { from: camera.position.clone(), to, t: 0 };
+}
+window.addEventListener('keydown', e => { if (e.target.tagName !== 'INPUT') flyTo(e.key); });
+for (const ev of ['pointerdown', 'wheel', 'keydown']) window.addEventListener(ev, () => { lastTouch = performance.now(); controls.autoRotate = false; }, { passive: true });
+
+// ── Подпись зоны: Shift и протянуть по полу ─────────────────────────────────
+const ray = new THREE.Raycaster(), floorPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0), ndc = new THREE.Vector2(), hit = new THREE.Vector3();
+let drag = null, dragLine = null;
+const form = document.getElementById('zoneForm'), nameInput = document.getElementById('zoneName');
+function floorPoint(e) {
+  ndc.set((e.clientX / innerWidth) * 2 - 1, -(e.clientY / innerHeight) * 2 + 1); ray.setFromCamera(ndc, camera);
+  return ray.ray.intersectPlane(floorPlane, hit) ? hit.clone() : null;
+}
+canvas.addEventListener('pointerdown', e => {
+  if (!e.shiftKey || !layout) return;
+  const p = floorPoint(e); if (!p) return;
+  controls.enabled = false; drag = { a: p, b: p.clone(), sx: e.clientX, sy: e.clientY };
+  dragLine = new THREE.LineLoop(new THREE.BufferGeometry().setFromPoints(Array(4).fill(p)), new THREE.LineBasicMaterial({ color: 0xffc66d })); scene.add(dragLine);
+  canvas.setPointerCapture(e.pointerId);
+});
+canvas.addEventListener('pointermove', e => {
+  if (!drag) return; const p = floorPoint(e); if (!p) return; drag.b = p;
+  const { a, b } = drag; dragLine.geometry.setFromPoints([[a.x, 0.05, a.z], [b.x, 0.05, a.z], [b.x, 0.05, b.z], [a.x, 0.05, b.z]].map(v => new THREE.Vector3(...v)));
+});
+canvas.addEventListener('pointerup', e => {
+  if (!drag) return; controls.enabled = true;
+  const { a, b } = drag, rect = { x: Math.min(a.x, b.x), z: Math.min(a.z, b.z), w: Math.abs(a.x - b.x), d: Math.abs(a.z - b.z) };
+  scene.remove(dragLine); dragLine.geometry.dispose(); dragLine = null; drag = null;
+  if (rect.w < 0.2 || rect.d < 0.2) return;        // случайный щелчок, не зона
+  form.style.left = Math.min(e.clientX, innerWidth - 330) + 'px'; form.style.top = Math.min(e.clientY, innerHeight - 60) + 'px';
+  form.classList.add('on'); form.dataset.rect = JSON.stringify(rect); nameInput.value = ''; nameInput.focus();
+});
+form.addEventListener('submit', async e => {
+  e.preventDefault(); const r = JSON.parse(form.dataset.rect), label = nameInput.value.trim(); if (!label) return;
+  const res = await fetch('./sam/presence/zone', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ label, ...r }) })
+    .catch(() => null);                                                        // радар не отвечает (перезапуск): зона не сохранена, это должно быть видно, а не теряться молча
+  if (!res) { nameInput.placeholder = 'радар не отвечает - зона не сохранена, нажми Enter ещё раз'; return; }     // форма остаётся открытой, подпись в поле
+  if (res.ok) { zones.push(await res.json()); buildZones(); form.classList.remove('on'); }
+  else { const err = await res.json().catch(() => ({})); nameInput.value = ''; nameInput.placeholder = err.detail || 'не сохранилось'; }
+});
+nameInput.addEventListener('keydown', e => { if (e.key === 'Escape') form.classList.remove('on'); });
+document.addEventListener('click', async e => {
+  const z = e.target.dataset?.zone; if (!z || !e.altKey) return;
+  if ((await fetch('./sam/presence/zone/' + encodeURIComponent(z), { method: 'DELETE' }).catch(() => null))?.ok) { zones = zones.filter(q => q.id !== z); buildZones(); }
+});
+
+// Трек прогулки на полу:
+// трек - координаты по времени, посчитанные сервером по проходимому пути (presence_nav). Путь режется на равные шаги,
+// показываются последние следы, новее - ярче
+const WALK_Y = 0.03;                   // над полом и под подписями
+const WALK_LINE_PX = 3;                  // толщина пунктира на экране, пикселей: при любом зуме одинаковая, штрихи пересчитываются по расстоянию камеры
+const WALK_DASH_M = 0.04, WALK_GAP_M = 0.06;   // пунктир пути: штрих и просвет, метры
+const WALK_LINE_OPACITY = 0.14;          // линия пути поверх поля теплоты: еле заметна, не заслоняет его
+const WALK_PRINTS_SHOWN = false;      // цепочка бусин-следов отключена: путь рисуется пунктиром, теплота - полем
+const WALK_STEP_M = 0.1;               // расстояние между пятнами вдоль пути: гуще радиуса, пятна сливаются в сплошную дорожку
+const WALK_TAIL_STEPS = Number(new URLSearchParams(location.search).get('tail')) || 400;   // сколько последних пятен видно (400 по 0,1 м - около 40 м пути): длинная прогулка - 79 следов (43 м), с кухней в 56 от конца; ?tail=N меняет
+const WALK_PRINT_R_M = 0.12;           // радиус пятна: ширина дорожки около 25 см, мягкий край уходит в ноль
+const WALK_SIDE_M = 0;                 // дорожка по оси пути без раскачки влево-вправо: сплошная линия, не шаги
+const walkColor = () => cssHex('--haze');   // путь - вторичным цветом темы: не спорит с теплотой и людьми
+const WALK_PEAK_GLOW = 0.45;          // яркость самого свежего следа: следы тише призраков, фигуры главнее
+const WALK_OLDEST_GLOW = 0.08;         // яркость самого старого следа хвоста, самый новый - 1
+const WALK_FADE_POWER = 2;             // как быстро тускнеет старое: след i из n светит как (i / n) ^ степень
+const FOOT_TEX_PX = 64, FOOT_CORE_STOP = 0.45, FOOT_CORE_ALPHA = 0.55;   // радиальный градиент пятна: яркая середина, плавный край
+const walkGroup = new THREE.Group(); scene.add(walkGroup);
+let walkDashes = null;                  // {mesh, steps, up, dist}: пунктир пути, ширина штриха подгоняется под расстояние камеры
+function fitWalkDashes(force = false) {   // штрих шириной WALK_LINE_PX пикселей экрана: метров на пиксель = 2 * расстояние * tan(fov / 2) / высота окна
+  if (!walkDashes) return;
+  const d = camera.position.distanceTo(controls.target);
+  if (!force && Math.abs(d - walkDashes.dist) < 0.02 * walkDashes.dist) return;      // камера почти не двигалась: матрицы не пересчитываются
+  walkDashes.dist = d;
+  const width = WALK_LINE_PX * 2 * d * Math.tan(THREE.MathUtils.degToRad(camera.fov) / 2) / innerHeight;
+  const m = new THREE.Matrix4(), q = new THREE.Quaternion(), pos = new THREE.Vector3(), size = new THREE.Vector3(WALK_DASH_M, 1, width);
+  walkDashes.steps.forEach((st, i) => { q.setFromAxisAngle(walkDashes.up, -Math.atan2(st.uz, st.ux)); m.compose(pos.set(st.x, WALK_Y, st.z), q, size); walkDashes.mesh.setMatrixAt(i, m); });
+  walkDashes.mesh.instanceMatrix.needsUpdate = true;
+}
+let walkPrints = null;                 // {mesh, tail}: следы текущей прогулки
+function recolorPrints() {             // цвет следа по теплу клетки под ним (синий-зелёный-красный), яркость по возрасту: свежее ярче
+  if (!walkPrints) return;
+  const { mesh, tail } = walkPrints, c = new THREE.Color();
+  tail.forEach((st, i) => {
+    const v = heatValue.get(Math.floor(st.x / heatCell) + ',' + Math.floor(st.z / heatCell)) ?? 0, t = heatT(v) ?? 0, rgb = heatColor(t);
+    const age = WALK_OLDEST_GLOW + (1 - WALK_OLDEST_GLOW) * (tail.length > 1 ? (i / (tail.length - 1)) ** WALK_FADE_POWER : 1);
+    mesh.setColorAt(i, c.setRGB(rgb[0] / 255, rgb[1] / 255, rgb[2] / 255).multiplyScalar(WALK_PEAK_GLOW * 2 * age));
+  });
+  mesh.instanceColor.needsUpdate = true;
+}
+function softDisc() {
+  const c = document.createElement('canvas'); c.width = c.height = FOOT_TEX_PX; const g = c.getContext('2d'), m = FOOT_TEX_PX / 2;
+  const grad = g.createRadialGradient(m, m, 0, m, m, m);
+  grad.addColorStop(0, 'rgba(255,255,255,1)'); grad.addColorStop(FOOT_CORE_STOP, `rgba(255,255,255,${FOOT_CORE_ALPHA})`); grad.addColorStop(1, 'rgba(255,255,255,0)');
+  g.fillStyle = '#000'; g.fillRect(0, 0, FOOT_TEX_PX, FOOT_TEX_PX);        // затухание запечено в цвет (серое на чёрном, непрозрачно): при смешивании по максимуму альфа не работает
+  g.fillStyle = grad; g.fillRect(0, 0, FOOT_TEX_PX, FOOT_TEX_PX);
+  return new THREE.CanvasTexture(c);
+}
+function routeSteps(points, stepM) {           // равные шаги вдоль ломаной: [{x, z, ux, uz}], (ux, uz) - направление
+  const out = []; let carry = 0;               // carry - сколько пройдено от последнего следа
+  for (let i = 1; i < points.length; i++) {
+    const a = points[i - 1], b = points[i], len = Math.hypot(b.x - a.x, b.z - a.z); if (len < 1e-6) continue;
+    const ux = (b.x - a.x) / len, uz = (b.z - a.z) / len;
+    for (let d = stepM - carry; d <= len; d += stepM) out.push({ x: a.x + ux * d, z: a.z + uz * d, ux, uz });
+    carry = (carry + len) % stepM;
+  }
+  return out;
+}
+async function loadWalk() {
+  try {
+    const walks = (await (await fetch('./sam/presence/walks')).json()).walks || [];
+    const w = walks[0]; if (!w || !w.points.length) return;
+    clearGroup(walkGroup);
+    if (!WALK_PRINTS_SHOWN) {                             // цепочка бусин отключена: путь прогулки - тонкий пунктир по полу, теплота вокруг него - в карте посещений
+      const dashes = spreadPasses(routeSteps(smoothTrail(w.track?.length ? w.track : w.points), WALK_DASH_M + WALK_GAP_M)), up = new THREE.Vector3(0, 1, 0);
+      const line = new THREE.InstancedMesh(new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2),
+        new THREE.MeshBasicMaterial({ color: walkColor(), transparent: true, opacity: WALK_LINE_OPACITY, depthWrite: false }), Math.max(1, dashes.length));
+      line.count = dashes.length; line.frustumCulled = false; line.renderOrder = RENDER_ORDER.prints; walkGroup.add(line);
+      walkDashes = { mesh: line, steps: dashes, up, dist: 0 }; fitWalkDashes(true);
+      return;
+    }
+    const tail = routeSteps(smoothTrail(w.track?.length ? w.track : w.points), WALK_STEP_M).slice(-WALK_TAIL_STEPS); if (!tail.length) return;
+    const mesh = new THREE.InstancedMesh(new THREE.PlaneGeometry(2 * WALK_PRINT_R_M, 2 * WALK_PRINT_R_M).rotateX(-Math.PI / 2),
+      new THREE.MeshBasicMaterial({ map: softDisc(), transparent: true, depthWrite: false, blending: THREE.CustomBlending, blendEquation: THREE.MaxEquation, blendSrc: THREE.OneFactor, blendDst: THREE.OneFactor }), tail.length);   // максимум, не сумма: пересечения дорожек сливаются, без ярких кругов
+    const m = new THREE.Matrix4(), c = new THREE.Color();
+    tail.forEach((st, i) => {
+      const side = (i % 2 ? 1 : -1) * WALK_SIDE_M;
+      m.makeTranslation(st.x - st.uz * side, WALK_Y, st.z + st.ux * side); mesh.setMatrixAt(i, m);
+      mesh.setColorAt(i, c.set(walkColor()));
+    });
+    mesh.frustumCulled = false; mesh.renderOrder = RENDER_ORDER.prints; walkGroup.add(mesh); walkPrints = { mesh, tail };
+    recolorPrints();
+  } catch (e) { console.warn('прогулка не загружена', e); }
+}
+
+// ── Связь с шлюзом: сокет и переподключение ─────────────────────────────────
+// ── Панель отладки: пороги детектора ползунками и сигнал каждого устройства ───
+const DBG_HISTORY = 120;              // отсчётов графика на устройство: 24 с при пяти кадрах в секунду
+const DBG_SAVE_DELAY_MS = 250;        // ползунок отправляется, когда его перестали двигать
+const DBG_Y_MAX_DB = 6;               // верх графика: дрожание выше уходит за край
+const dbgEl = document.getElementById('dbg'), dbgKnobs = document.getElementById('dbgKnobs'), dbgLines = document.getElementById('dbgLines');
+let dbgTuning = {}, dbgTimer = 0;
+const dbgHist = new Map();            // sid -> {name, db, activity, std[], base[], canvas, label}
+function dbgToggle() { dbgEl.classList.toggle('on'); }
+document.getElementById('dbgToggle').addEventListener('click', e => { e.preventDefault(); dbgToggle(); });
+window.addEventListener('keydown', e => { if (e.key.toLowerCase() === 'd' && e.target.tagName !== 'INPUT') dbgToggle(); });
+async function dbgSend(patch) {
+  clearTimeout(dbgTimer);
+  dbgTimer = setTimeout(async () => {
+    const res = await fetch('./sam/presence/tuning', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(patch) });
+    if (res.ok) dbgTuning = (await res.json()).tuning;
+  }, DBG_SAVE_DELAY_MS);
+}
+function dbgKnobRow(k, values) {
+  const label = document.createElement('label'), out = document.createElement('output'), input = document.createElement('input'), hint = document.createElement('small');
+  if (k.flag) {                                           // 0 или 1: галка, не ползунок
+    input.type = 'checkbox'; input.checked = Number(values[k.name]) >= 0.5; hint.textContent = k.hint;
+    input.addEventListener('change', () => { dbgTuning[k.name] = input.checked ? 1 : 0; dbgSend({ [k.name]: dbgTuning[k.name] }); });
+    label.append(input, ' ' + k.label, hint); label.dataset.knob = k.name;
+    return label;
+  }
+  input.type = 'range'; input.min = k.min; input.max = k.max; input.step = k.step; input.value = values[k.name];
+  out.textContent = String(Number(values[k.name]));
+  hint.textContent = k.hint;
+  input.addEventListener('input', () => { out.textContent = Number(input.value).toString(); dbgTuning[k.name] = Number(input.value); dbgSend({ [k.name]: Number(input.value) }); });
+  label.append(k.label, out, input, hint); label.dataset.knob = k.name;
+  return label;
+}
+function dbgBuildKnobs(knobs, values) {                 // группы с сервера: детектор - в «Отладке радара», анимация - в «Анимации роя» рядом с ползунками страницы
+  dbgTuning = { ...values };
+  dbgKnobs.replaceChildren(...knobs.filter(k => k.group === 'detector').map(k => dbgKnobRow(k, values)));
+  document.getElementById('animServerKnobs').replaceChildren(...knobs.filter(k => k.group === 'animation').map(k => dbgKnobRow(k, values)));
+}
+// Вероятность человека руками: ползунок и место, куда его поставить (POST /sam/presence/person)
+const dbgPeople = document.getElementById('dbgPeople');
+let personTimer = {};
+function dbgBuildPeople(people, placeKeys, overrides) {
+  dbgPeople.replaceChildren(...Object.entries(people).map(([id, p]) => {
+    const row = document.createElement('div'), label = document.createElement('label'), out = document.createElement('output');
+    const range = document.createElement('input'), place = document.createElement('select'), auto = document.createElement('button');
+    const own = overrides[id] || {};
+    range.type = 'range'; range.min = 0; range.max = 1; range.step = 0.05; range.value = own.confidence ?? 0.5;
+    out.textContent = own.confidence === undefined ? 'авто' : String(own.confidence);
+    place.append(Object.assign(document.createElement('option'), { value: '', textContent: 'место: где радар видит' }),
+                 ...placeKeys.map(k => Object.assign(document.createElement('option'), { value: k, textContent: k })));
+    place.value = own.place || '';
+    auto.type = 'button'; auto.textContent = 'авто';
+    const send = () => {
+      out.textContent = String(range.value); clearTimeout(personTimer[id]);
+      personTimer[id] = setTimeout(() => fetch('./sam/presence/person', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ person: id, confidence: Number(range.value), place: place.value || null }) }), DBG_SAVE_DELAY_MS);
+    };
+    range.addEventListener('input', send); place.addEventListener('change', send);
+    auto.addEventListener('click', () => { clearTimeout(personTimer[id]); out.textContent = 'авто'; place.value = ''; fetch('./sam/presence/person/' + encodeURIComponent(id), { method: 'DELETE' }); });
+    label.append(p.name || id, out, range); row.append(label, place, auto);
+    if (p.phallus) {                                      // у кого эта часть тела рисуется: галка держит её поднятой, без ожидания смены по ритму
+      const force = document.createElement('input'), box = document.createElement('label');
+      force.type = 'checkbox'; force.checked = phallusForced.has(id);
+      force.addEventListener('change', () => { force.checked ? phallusForced.add(id) : phallusForced.delete(id); });
+      box.append(force, ' erect сейчас'); row.append(box);
+    }
+    return row;
+  }));
+}
+// Зоны в панели: список с замком и стиранием
+const dbgZonesEl = document.getElementById('dbgZones');
+function dbgZoneList() {
+  dbgZonesEl.replaceChildren(...zones.map(z => {
+    const row = document.createElement('div'), name = document.createElement('span'), lock = document.createElement('button'), del = document.createElement('button');
+    name.textContent = z.label; lock.type = 'button'; del.type = 'button';
+    lock.textContent = z.locked ? '🔒' : '🔓'; lock.title = z.locked ? 'зона логическая: стереть нельзя, нажми - снять замок' : 'поставить замок: зону нельзя будет стереть';
+    lock.addEventListener('click', async () => {
+      const res = await fetch('./sam/presence/zone/' + encodeURIComponent(z.id) + '/lock', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ locked: !z.locked }) }).catch(() => null);
+      if (res?.ok) { z.locked = !z.locked; dbgZoneList(); }
+    });
+    del.textContent = '×'; del.title = 'стереть зону'; del.disabled = !!z.locked; del.style.visibility = z.locked ? 'hidden' : 'visible';
+    del.addEventListener('click', async () => {
+      const res = await fetch('./sam/presence/zone/' + encodeURIComponent(z.id), { method: 'DELETE' }).catch(() => null);
+      if (res?.ok) { zones = zones.filter(q => q.id !== z.id); buildZones(); }
+    });
+    const tools = document.createElement('span'); tools.append(lock, del);
+    row.append(name, tools); return row;
+  }));
+}
+// Трасса состояний и снимок страницы: по ним можно разобрать, что человек видит, без рассказа словами
+const traceOn = document.getElementById('traceOn'), shotOut = document.getElementById('shotOut');
+traceOn.addEventListener('change', () => fetch('./sam/presence/debug', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ on: traceOn.checked }) }).catch(() => {}));
+fetch('./sam/presence/debug').then(r => r.json()).then(d => { traceOn.checked = !!d.on; }).catch(() => {});
+let shotRequested = false;
+document.getElementById('shotBtn').addEventListener('click', () => { shotRequested = true; shotOut.textContent = 'снимаю...'; });
+function sendShot() {                                     // зовётся сразу после render: тогда буфер холста не пуст
+  const state = { mode, camera: camera.position.toArray(), target: controls.target.toArray(), ghosts: [...ghosts.values()].map(g => ({ name: g.name, x: g.cx, z: g.cz, pose: g.pose, face: g.face, conf: g.conf })) };
+  fetch('./sam/presence/screenshot', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ image: canvas.toDataURL('image/png'), state }) })
+    .then(r => r.json()).then(d => { shotOut.textContent = d.path || 'не сохранилось'; }).catch(() => { shotOut.textContent = 'радар не отвечает'; });
+}
+// Автопилот маршрутов и ползунки анимации роя: подбор чисел на глаз
+const animBox = document.getElementById('animKnobs'), animNumbers = document.getElementById('animNumbers');
+const ANIM_STORE = 'presence.flight';
+try { Object.assign(FLIGHT, JSON.parse(localStorage.getItem(ANIM_STORE) || '{}')); } catch (_) { /* память страницы недоступна: параметры по умолчанию */ }
+let animTimer = 0;
+function animSync(key) {              // значение уходит на сервер, там пишется в журнал и сохраняется; несколько движений подряд - одна отправка
+  clearTimeout(animTimer);
+  animTimer = setTimeout(() => fetch('./sam/presence/animation', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ [key]: FLIGHT[key] }) }).catch(() => {}), DBG_SAVE_DELAY_MS);
+}
+fetch('./sam/presence/animation').then(r => r.json()).then(({ values }) => {               // сервер хранит последние значения: после обновления страницы и в другом браузере те же
+  if (values && Object.keys(values).length) { Object.assign(FLIGHT, values); animBuild(); }
+}).catch(() => {});
+function animSave() { try { localStorage.setItem(ANIM_STORE, JSON.stringify(FLIGHT)); } catch (_) { /* не критично */ } }
+function animSendBurst() {                         // длительность рывка нужна серверу: шаг = рывок + пауза в позе
+  fetch('./sam/presence/tuning', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ walk_burst_s: Math.round(burstSeconds() * 100) / 100 }) }).catch(() => {});
+}
+function animNumbersText() {
+  const server = { ...(dbgTuning || {}) };
+  return JSON.stringify({ animation: { ...FLIGHT, burst_s: Math.round(burstSeconds() * 100) / 100 }, tuning: server, autopilot_period_s: Number(document.getElementById('autoPeriod').value) }, null, 1);
+}
+function animBuild() {
+  animBox.replaceChildren(...FLIGHT_KNOBS.map(([key, label, min, max, step, hint]) => {
+    const row = document.createElement('label'), out = document.createElement('output'), input = document.createElement('input'), note = document.createElement('small');
+    note.textContent = hint;
+    input.type = 'range'; input.min = min; input.max = max; input.step = step; input.value = FLIGHT[key]; out.textContent = String(FLIGHT[key]);
+    input.addEventListener('input', () => { FLIGHT[key] = Number(input.value); out.textContent = input.value; animSave(); animSync(key); animSendBurst(); if (animNumbers.style.display !== 'none') animNumbers.value = animNumbersText(); });
+    row.append(label, out, input, note); return row;
+  }));
+}
+animBuild();
+document.getElementById('animReset').addEventListener('click', () => { Object.assign(FLIGHT, DEFAULTS); animSave(); fetch('./sam/presence/animation', { method: 'DELETE' }).catch(() => {}); animBuild(); animSendBurst(); });
+document.getElementById('animCopy').addEventListener('click', () => { animNumbers.style.display = 'block'; animNumbers.value = animNumbersText(); animNumbers.select(); });
+const autoOn = document.getElementById('autoOn'), autoPeriod = document.getElementById('autoPeriod');
+function clearCoverage() {
+  for (const plane of [coveragePlane, coverageArrowsPlane]) {
+    if (!plane) continue;
+    world.remove(plane); plane.geometry.dispose(); plane.material.map.dispose(); plane.material.dispose();
+  }
+  coveragePlane = coverageArrowsPlane = null;
+}
+function addCoverageArrows(c) {         // холст со стрелками градиента над картой покрытия, той же геометрии
+  const cell = c.cell_m, canvas = document.createElement('canvas');
+  canvas.width = Math.ceil(c.w * cell * ARROWS_PX_PER_M); canvas.height = Math.ceil(c.h * cell * ARROWS_PX_PER_M);
+  if (document.getElementById('coverageArrows').checked) paintArrows(canvas.getContext('2d'), gradientArrows(c, onFloor), c, ARROWS_PX_PER_M);
+  if (walkState && document.getElementById('walkOn').checked) paintWalkArrows(canvas.getContext('2d'), walkArrows(walkState, Number(document.getElementById('walkSeconds').value)), c, ARROWS_PX_PER_M);
+  const map = new THREE.CanvasTexture(canvas);         // flipY по умолчанию: верх холста (меньший z) ложится на дальний край плоскости, как строки карты покрытия
+  coverageArrowsPlane = new THREE.Mesh(new THREE.PlaneGeometry(c.w * cell, c.h * cell), new THREE.MeshBasicMaterial({ map, transparent: true, depthWrite: false }));
+  coverageArrowsPlane.rotation.x = -Math.PI / 2; coverageArrowsPlane.position.set((c.i0 + c.w / 2) * cell, 0.009, (c.k0 + c.h / 2) * cell); coverageArrowsPlane.renderOrder = RENDER_ORDER.floor + 0.6; world.add(coverageArrowsPlane);
+}
+async function showCoverage(on) {       // слой под картой посещений: сначала покрытие, поверх него ходьба
+  clearCoverage();
+  const out = document.getElementById('coverageOut'); out.textContent = '';
+  if (!on || !layout) return;
+  try {
+    const pick = document.getElementById('coverageModel'), r = await fetch('./sam/presence/coverage' + (pick.value ? '?model=' + encodeURIComponent(pick.value) : ''));
+    if (!r.ok) { out.textContent = (await r.json()).detail || r.status; return; }
+    const c = await r.json(), tex = coverageTexture(c, onFloor), cell = c.cell_m;
+    if (pick.options.length !== c.models.length) { pick.innerHTML = c.models.map(m => `<option value="${m.key}">${m.label}</option>`).join(''); }
+    pick.value = c.model;
+    const map = new THREE.DataTexture(tex.data, tex.w, tex.h, THREE.RGBAFormat); map.magFilter = THREE.LinearFilter; map.minFilter = THREE.LinearFilter; map.needsUpdate = true;
+    coveragePlane = new THREE.Mesh(new THREE.PlaneGeometry(c.w * cell, c.h * cell), new THREE.MeshBasicMaterial({ map, transparent: true, depthWrite: false }));
+    coveragePlane.rotation.x = -Math.PI / 2; coveragePlane.position.set((c.i0 + c.w / 2) * cell, 0.008, (c.k0 + c.h / 2) * cell); coveragePlane.renderOrder = RENDER_ORDER.floor + 0.5; world.add(coveragePlane);
+    walkState = null; document.getElementById('walkOut').textContent = '';
+    if (document.getElementById('walkOn').checked) {
+      const w = await fetch('./sam/presence/walk_fields?model=' + encodeURIComponent(c.model));
+      if (w.ok) {
+        walkState = await w.json(); const seconds = document.getElementById('walkSeconds');
+        seconds.max = String(walkState.fields.length); document.getElementById('walkOut').textContent = walkSummary(walkState, Number(seconds.value));
+      } else document.getElementById('walkOut').textContent = (await w.json()).detail || w.status;
+    }
+    if (document.getElementById('coverageArrows').checked || walkState) addCoverageArrows(c);
+    out.textContent = `${coverageSummary(c.places)}. Сейчас в сети: ${connectedText(c.connected, c.models)}`;
+  } catch (e) { out.textContent = 'нет ответа радара'; }
+}
+// ── Слои вероятности: поле телефона и поле человека ─────────────────────────
+const FIELD_REDRAW_MS = 400;           // слой перерисовывается не чаще: кадры идут пять раз в секунду, холст большой
+function fillSelect(select, options) {  // варианты меняются, выбор пользователя сохраняется
+  const keep = select.value;
+  if ([...select.options].map(o => o.value).join('|') !== options.map(o => o[0]).join('|')) select.innerHTML = options.map(([v, label]) => `<option value="${v}">${label}</option>`).join('');
+  if (keep && options.some(o => o[0] === keep)) select.value = keep;
+}
+let floorMaskCanvas = null;             // маска пола плана для обрезки слоёв: пятно у стены не должно выходить за стену
+function clipToFloor(g, W, H) {
+  if (!floorMaskCanvas) {
+    const m = floorMask(onFloor, bbox); floorMaskCanvas = document.createElement('canvas'); floorMaskCanvas.width = m.w; floorMaskCanvas.height = m.h;
+    floorMaskCanvas.getContext('2d').putImageData(new ImageData(m.data, m.w, m.h), 0, 0);
+  }
+  g.globalCompositeOperation = 'destination-in'; g.drawImage(floorMaskCanvas, 0, 0, W, H); g.globalCompositeOperation = 'source-over';
+}
+function drawFields() {
+  const personOn = document.getElementById('personFieldOn').checked;
+  if (!layout || !bbox) return;
+  fillSelect(document.getElementById('personFieldWho'), (ghostList || []).map(i => [i.person, i.person]));
+  if (!personOn) { if (fieldPlane) fieldPlane.visible = false; document.getElementById('personFieldOut').textContent = ''; return; }
+  if (performance.now() - fieldAt < FIELD_REDRAW_MS) return;
+  fieldAt = performance.now();
+  const W = Math.ceil(bbox.w * FIELD_PX_PER_M), H = Math.ceil(bbox.d * FIELD_PX_PER_M);
+  if (!fieldCanvas) { fieldCanvas = document.createElement('canvas'); fieldCanvas.width = W; fieldCanvas.height = H; fieldTexture = new THREE.CanvasTexture(fieldCanvas); }
+  const g = fieldCanvas.getContext('2d'); g.clearRect(0, 0, W, H);
+  const who = (ghostList || []).find(i => i.person === document.getElementById('personFieldWho').value);
+  paintBlobs(g, personBlobs(who), probabilityRgb, bbox);
+  clipToFloor(g, W, H);
+  document.getElementById('personFieldOut').textContent = describePerson(who);
+  if (!fieldPlane) {
+    fieldPlane = new THREE.Mesh(new THREE.PlaneGeometry(bbox.w, bbox.d), new THREE.MeshBasicMaterial({ map: fieldTexture, transparent: true, depthWrite: false }));
+    fieldPlane.rotation.x = -Math.PI / 2; fieldPlane.position.set(bbox.cx, 0.03, bbox.cz); fieldPlane.renderOrder = RENDER_ORDER.heat + 0.2; world.add(fieldPlane);
+  }
+  fieldPlane.visible = true; fieldTexture.needsUpdate = true;
+}
+// ── Слои пола: выбран один, остальные следы выключены ───────────────────────
+const FLOOR_LAYERS = ['visitOn', 'noneOn', 'coverageOn', 'phoneFieldOn', 'personFieldOn'];
+const FLOW_POLL_MS = 1000;             // состояние потока приходит раз в секунду: срез потока секунда
+let flowState = null, flowDevice = null, flowPlane = null, flowCanvas = null, flowTexture = null, flowTimer = 0;
+function floorLayer() { return FLOOR_LAYERS.find(id => document.getElementById(id).checked) || 'visitOn'; }
+function applyFloorVisibility() {      // карта посещений, шаги и линия прогулки видны только на своём слое; вызывается и после перестройки карты
+  const visit = floorLayer() === 'visitOn';
+  if (heatPlane) heatPlane.visible = visit;
+  if (stepsPlane) stepsPlane.visible = visit;
+  walkGroup.visible = visit;
+}
+const FLOW_LAYERS = ['phoneFieldOn'];       // слои, которые рисуются по /sam/presence/flow: поле wi-fi устройства; расчёт алгоритма включается флажком flowAlgoOn поверх него
+function flowActive() { return FLOW_LAYERS.includes(floorLayer()); }
+function algoMode() { return floorLayer() === 'phoneFieldOn' && document.getElementById('flowAlgoOn').checked; }       // как считает алгоритм: наложения слоя потока
+function applyFloorLayer() {
+  const layer = floorLayer();
+  applyFloorVisibility();
+  showCoverage(layer === 'coverageOn');
+  fieldAt = 0; drawFields();
+  document.getElementById('flowParts').style.display = flowActive() ? '' : 'none';
+  document.getElementById('flowAlgoMode').style.display = ['phoneFieldOn', 'personFieldOn'].includes(layer) ? '' : 'none';
+  document.getElementById('flowAlgoOn').disabled = layer === 'personFieldOn';
+  if (flowPlane) flowPlane.visible = flowActive();
+  clearInterval(flowTimer);
+  if (flowActive()) { loadFlow(); flowTimer = setInterval(() => { if (!flowFrozen()) loadFlow(); }, FLOW_POLL_MS); }
+}
+const flowFrozen = timeStopped;
+let rewindSpan = null;                                       // границы записи треков {from, to} в секундах unix; null - перемотки нет
+const REWIND_DEBOUNCE_MS = 150;                              // ползунок перемотки: запрос не чаще, пересчёт минуты записи на сервере стоит доли секунды
+let rewindTimer = null;
+const rewindAt = () => (flowFrozen() && rewindSpan ? Number(document.getElementById('rewindAt').value) : null);     // секунда записи под ползунком; живой режим - null
+async function openRewind() {                                // при остановке: границы записи, ползунок на последнюю секунду
+  try { const s = await (await fetch('./sam/presence/rewind/span')).json(); rewindSpan = s.enabled ? { from: Math.ceil(s.from), to: Math.floor(s.to) } : null; } catch (e) { rewindSpan = null; }
+  const row = document.getElementById('rewindRow'), slider = document.getElementById('rewindAt');
+  row.style.display = rewindSpan ? '' : 'none';
+  if (rewindSpan) { slider.min = String(rewindSpan.from); slider.max = String(rewindSpan.to); slider.value = String(rewindSpan.to); showRewindLabel(); }
+}
+function showRewindLabel() {
+  const at = rewindAt();
+  document.getElementById('rewindLabel').textContent = at === null ? '' : `${new Date(at * 1000).toLocaleString('ru-RU')} (${rewindSpan.to - at} с назад)`;
+}
+async function loadFlow() {
+  const value = Number(document.getElementById('flowUpTo').value), second = flowFrozen() ? 'all' : (value > 0 ? value - 1 : null);       // законные пути и пути окна только для выбранной секунды; на перемотке для всех сразу
+  const chosen = flowFrozen() ? '' : document.getElementById('flowDevice').value;       // подробности только по выбранному устройству; пока не выбрано или на перемотке - по всем, чтобы устройство можно было менять на застывшем состоянии
+  const at = rewindAt();
+  try { flowState = await (await fetch('./sam/presence/flow?detail=1' + (chosen ? '&device=' + encodeURIComponent(chosen) : '') + (second === null ? '' : '&second=' + second) + (at === null ? '' : '&at=' + at))).json(); } catch (e) { flowState = null; }
+  drawFlow();
+}
+function drawFlow() {
+  if (!layout || !bbox || !flowActive()) return;
+  const out = document.getElementById('flowOut');
+  if (!flowState?.enabled) { out.textContent = 'поток выключен: SAM_PRESENCE_FLOW=1'; if (flowPlane) flowPlane.visible = false; return; }
+  const subjects = [...flowState.devices, ...(flowState.people || [])];          // телефоны и люди: одна форма записи, один рендер
+  fillSelect(document.getElementById('flowDevice'), subjects.map(d => [d.id + '|' + d.iface, d.iface === 'person' ? `человек ${d.name}` : `${(d.name || d.id).split(/[-_ ]/)[0]} ${d.iface === 'phy0-ap0' ? '2,4' : '5'} ГГц`]));
+  const device = subjects.find(d => d.id + '|' + d.iface === document.getElementById('flowDevice').value);
+  const skipped = Object.keys(flowState.skipped || {});
+  out.textContent = (describeFlow(device) || (skipped.length ? 'нет модели уровня: ' + skipped.join(', ') : 'нет данных')) + (flowFrozen() ? (flowState.at ? ` - перемотка на ${new Date(flowState.at * 1000).toLocaleTimeString('ru-RU')}` : ' - стоп времени') : '');
+  const W = Math.ceil(bbox.w * FIELD_PX_PER_M), H = Math.ceil(bbox.d * FIELD_PX_PER_M);
+  if (!flowCanvas) { flowCanvas = document.createElement('canvas'); flowCanvas.width = W; flowCanvas.height = H; flowTexture = new THREE.CanvasTexture(flowCanvas); }
+  const g = flowCanvas.getContext('2d'); g.clearRect(0, 0, W, H);
+  flowDevice = device || null;
+  document.getElementById('flowAlgo').style.display = algoMode() ? '' : 'none';
+  document.getElementById('flowLegendBar').style.background = legendGradient();
+  document.getElementById('flowLegendText').textContent = device ? legendText(device.p) : '';
+  if (device?.slices?.length) {
+    const slices = device.slices, last = slices.length - 1, upInput = document.getElementById('flowUpTo');
+    upInput.max = String(slices.length);
+    const upTo = Math.min(slices.length, Math.max(1, Number(upInput.value) || slices.length)), at = upTo - 1;       // секунд окна в расчёте: поле, пути и точка за первые upTo секунд
+    const on = id => document.getElementById(id).checked, step = flowState.step_m, algo = algoMode(), counted = secondSlices(slices, upTo);
+    const contour = on('flowContour'), legal = on('flowLegal');       // контур и законные клетки вместе дают итоговую зону секунды; по отдельности - контур или контур на законных клетках
+    document.getElementById('flowSecondLabel').textContent = String(upTo);
+    document.getElementById('flowGrowth').textContent = describeGrowth(slices, upTo).join('\n');
+    if (algo && on('flowExcluded')) paintExcluded(g, flowState.cells, counted, bbox, step, FIELD_PX_PER_M, at);
+    if (algo && legal && !contour) paintLegal(g, flowState.cells, counted, bbox, step, FIELD_PX_PER_M, at);
+    if (!algo) paintZone(g, flowState.cells, device.p, bbox, step, FIELD_PX_PER_M, 0, FIELD_ALPHA);
+    else if (contour && legal) paintZone(g, flowState.cells, at === last ? device.p : slices[at].alpha, bbox, step);
+    else if (contour) paintContour(g, flowState.cells, slices[at], bbox, step);
+    if (algo && on('flowPaths')) { paintContours(g, flowState.cells, counted, bbox, step, FIELD_PX_PER_M, at); paintPaths(g, flowState.cells, slices[at].paths || [], bbox); }
+    if (algo && on('flowPoint')) paintTrail(g, slices.map(slice => slice.point), bbox, FIELD_PX_PER_M, at, device.before_point);
+    if (!algo) paintPoint(g, device.point, device.previous_point, bbox);
+    if (on('flowAscent')) { const shown = at === last ? device : slices[at]; paintAscent(g, shown.point, shown.ascent, bbox); }      // куда в точке этой секунды растёт ожидаемый уровень: к роутеру
+  }
+  if (!flowPlane) {
+    flowPlane = new THREE.Mesh(new THREE.PlaneGeometry(bbox.w, bbox.d), new THREE.MeshBasicMaterial({ map: flowTexture, transparent: true, depthWrite: false }));
+    flowPlane.rotation.x = -Math.PI / 2; flowPlane.position.set(bbox.cx, 0.034, bbox.cz); flowPlane.renderOrder = RENDER_ORDER.heat + 0.3; world.add(flowPlane);
+  }
+  flowPlane.visible = true; flowTexture.needsUpdate = true;
+}
+canvas.addEventListener('pointermove', e => {       // значение клетки под курсором: точная вероятность, цвет её только показывает
+  if (!flowActive() || !flowState?.enabled || !flowDevice) return;
+  const p = floorPoint(e), i = p ? cellAt(flowState.cells, p.x, p.z, flowState.step_m) : -1;
+  document.getElementById('flowHover').textContent = i < 0 ? 'вне доступных мест' : `(${p.x.toFixed(1)}; ${p.z.toFixed(1)}): ${(flowDevice.p[i] * 100).toFixed(1)}%`;
+});
+for (const id of FLOOR_LAYERS) document.getElementById(id).addEventListener('change', applyFloorLayer);
+document.getElementById('personFieldWho').addEventListener('change', () => { fieldAt = 0; drawFields(); });
+for (const id of ['coverageModel', 'coverageArrows', 'walkOn', 'walkSeconds']) document.getElementById(id).addEventListener('change', () => showCoverage(floorLayer() === 'coverageOn'));
+document.getElementById('timeStop').addEventListener('change', async e => {
+  if (e.target.checked) { stoppedAt = performance.now(); await openRewind(); } else { pausedTotalMs += performance.now() - stoppedAt; stoppedAt = 0; document.getElementById('rewindRow').style.display = 'none'; }
+  if (flowActive()) { if (timeStopped()) loadFlow(); else drawFlow(); }
+});       // перемотка: один запрос с подробностями по всем устройствам на выбранную секунду; снятие - обычный опрос подхватит сам
+document.getElementById('rewindAt').addEventListener('input', () => {
+  showRewindLabel();
+  clearTimeout(rewindTimer); rewindTimer = setTimeout(() => { if (flowActive() && flowFrozen()) loadFlow(); }, REWIND_DEBOUNCE_MS);
+});
+document.getElementById('flowUpTo').addEventListener('input', () => { if (flowActive() && !flowFrozen()) loadFlow(); else drawFlow(); });     // законные клетки и пути приходят только для выбранной секунды: смена секунды запрашивает ответ заново, на стопе времени все секунды уже есть
+for (const id of ['flowAlgoOn', 'flowDevice', 'flowExcluded', 'flowLegal', 'flowPaths', 'flowContour', 'flowPoint', 'flowAscent']) document.getElementById(id).addEventListener('input', drawFlow);
+document.getElementById('heatClear').addEventListener('click', () => {
+  if (!confirm('Обнулить накопленную карту посещений?')) return;
+  fetch('./sam/presence/heat', { method: 'DELETE' }).then(r => r.json()).then(() => applyHeat({ cell_m: heatCell, cells: [] })).catch(() => {});      // страница не ждёт следующую отправку карты: рисует пустую сразу
+});
+const realBox = document.getElementById('realOn');
+const realSync = on => fetch('./sam/presence/real', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ on }) }).then(r => r.json()).then(st => { realBox.checked = !!st.on; if (st.on) { autoOn.checked = false; } }).catch(() => {});
+realBox.addEventListener('change', () => realSync(realBox.checked));
+fetch('./sam/presence/real').then(r => r.json()).then(st => { realBox.checked = !!st.on; }).catch(() => {});         // режим живёт на сервере и переживает обновление страницы
+const autoSend = () => fetch('./sam/presence/autopilot', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ on: autoOn.checked, period_s: Number(autoPeriod.value), mode: document.getElementById('autoMode').value }) }).catch(() => {});
+autoOn.addEventListener('change', autoSend);
+document.getElementById('autoMode').addEventListener('change', () => { if (autoOn.checked) autoSend(); });
+autoPeriod.addEventListener('input', () => { document.getElementById('autoOut').textContent = autoPeriod.value; if (autoOn.checked) autoSend(); });
+if (new URLSearchParams(location.search).get('debug') === '1') { traceOn.checked = true; traceOn.dispatchEvent(new Event('change')); }      // флаг ?debug=1 включает трассу
+fetch('./sam/presence/autopilot').then(r => r.json()).then(st => {          // автопилот живёт на сервере и переживает обновление страницы: галка показывает правду
+  autoOn.checked = !!st.on; autoPeriod.value = st.period_s; document.getElementById('autoOut').textContent = String(st.period_s);
+  if (st.mode) document.getElementById('autoMode').value = st.mode;
+}).catch(() => {});
+if (new URLSearchParams(location.search).get('auto') === '1') { autoOn.checked = true; autoSend(); }          // флаг ?auto=1 включает автопилот при открытии страницы
+// Имитация входящего сообщения: тот же вход, что у чата и голоса, - POST /sam/presence/message
+const simForm = document.getElementById('dbgSim'), simChannel = document.getElementById('simChannel'), simDevice = document.getElementById('simDevice');
+const simLevel = document.getElementById('simLevel'), simResult = document.getElementById('simResult');
+function simSyncChannel() {
+  document.getElementById('simLevelRow').style.display = simChannel.value === 'voice' ? 'block' : 'none';
+}
+simChannel.addEventListener('change', simSyncChannel); simSyncChannel();
+simLevel.addEventListener('input', () => { document.getElementById('simLevelOut').textContent = simLevel.value; });
+function simFillDevices(lay) {
+  const keys = Object.keys(lay.spots || {});
+  simDevice.replaceChildren(...keys.map(k => Object.assign(document.createElement('option'), { value: k, textContent: k })));
+}
+simForm.addEventListener('submit', async e => {
+  e.preventDefault();
+  const body = { channel: simChannel.value, device: simChannel.value === 'told' ? null : simDevice.value,
+                 who: document.getElementById('simWho').value || null,
+                 level: simChannel.value === 'voice' ? Number(simLevel.value) : null,
+                 place: simChannel.value === 'told' ? simDevice.value : null };
+  const res = await fetch('./sam/presence/message', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+  simResult.textContent = res.ok ? 'отправлено, смотри на схеме и в «где кто»' : `ошибка ${res.status}`;
+});
+document.getElementById('dbgReset').addEventListener('click', async () => {
+  const res = await fetch('./sam/presence/tuning', { method: 'DELETE' });
+  if (!res.ok) return;
+  const values = (await res.json()).tuning;
+  for (const label of [...dbgKnobs.children, ...document.getElementById('animServerKnobs').children]) {
+    const v = values[label.dataset.knob]; label.querySelector('input').value = v; label.querySelector('output').textContent = String(v);
+  }
+  dbgTuning = values;
+});
+function dbgPush(lines) {
+  if (!dbgEl.classList.contains('on')) return;
+  for (const [sid, l] of Object.entries(lines)) {
+    let h = dbgHist.get(sid);
+    if (!h) {
+      const row = document.createElement('div'), canvas = document.createElement('canvas'), label = document.createElement('span');
+      row.className = 'dbgrow'; canvas.width = 560; canvas.height = 68; row.append(label, canvas);
+      if (!dbgHist.size) dbgLines.replaceChildren();
+      dbgLines.append(row);
+      h = { std: [], base: [], canvas, label }; dbgHist.set(sid, h);
+    }
+    h.std.push(l.std); h.base.push(l.base);
+    if (h.std.length > DBG_HISTORY) { h.std.shift(); h.base.shift(); }
+    h.label.textContent = `${l.name || sid} · ${l.db} дБ · активность ${Math.round(l.activity * 100)}%`;
+    dbgDraw(h);
+  }
+  for (const [sid, h] of dbgHist) if (!(sid in lines)) { h.canvas.parentElement.remove(); dbgHist.delete(sid); }
+}
+function dbgDraw(h) {
+  const c = h.canvas, g = c.getContext('2d'), W = c.width, H = c.height, y = v => H - Math.min(1, v / DBG_Y_MAX_DB) * H;
+  g.clearRect(0, 0, W, H);
+  const line = (arr, color, offset = 0, dash = []) => {
+    g.beginPath(); g.setLineDash(dash); g.strokeStyle = color; g.lineWidth = 2;
+    arr.forEach((v, i) => { const x = i / (DBG_HISTORY - 1) * W; i ? g.lineTo(x, y(v + offset)) : g.moveTo(x, y(v + offset)); });
+    g.stroke();
+  };
+  line(h.base, cssHex('--haze')); line(h.base, cssHex('--amber'), dbgTuning.noise_floor_db ?? 0, [6, 4]); line(h.std, cssHex('--ice'));
+}
+// Легенда: в демо - виды людей по цвету, в реальных режимах - люди дома и их цвета из планировки
+const legendEl = document.getElementById('legend');
+const LEGEND_KINDS = [['свой', 'var(--amber)'], ['гость', 'var(--ice)'], ['чужой', 'var(--alarm)'], ['питомец', 'var(--pet)']];
+function buildLegend(mode, people) {
+  const items = mode === 'mock' ? LEGEND_KINDS : [...Object.values(people || {}).map(p => [p.name, p.color]), ['кто-то ещё', UNKNOWN_PERSON.color]];
+  legendEl.replaceChildren(...items.map(([name, color]) => {
+    const span = document.createElement('span'); span.textContent = name; span.style.setProperty('--c', color); return span;
+  }));
+}
+const stateEl = document.getElementById('state'), stateText = document.getElementById('stateText');
+function setState(cls, text) { stateEl.className = cls; stateText.textContent = text; }
+let ws = null, retry = 1000, lastFrameAt = 0, mode = '';
+function connect() {
+  ws = new WebSocket(new URL('ws/presence', location.href.replace(/^http/, 'ws')));        // от адреса страницы: прямо с радара и через шлюз /apps/radar/
+  ws.onopen = () => { retry = 1000; setState('', 'жду данные'); };
+  ws.onmessage = ev => {
+    const msg = JSON.parse(ev.data);
+    if (msg.type === 'hello') {
+      if (!msg.enabled) { document.getElementById('off').classList.add('on'); setState('', 'выключено'); return; }
+      mode = msg.mode; layout = msg.layout; zones = msg.zones || []; stale = msg.stale_s; lost = msg.lost_s;
+      fillSelect(document.getElementById('simWho'), [['', 'не назван'], ...Object.entries(layout.people || {}).map(([id, p]) => [id, p.name || id])]);      // кто говорит и пишет: люди из плана
+      buildWorld(); fieldPlane = null; fieldCanvas = null; floorMaskCanvas = null; flowPlane = null; flowCanvas = null; applyHeat(msg.heat); loadWalk(); buildLegend(mode, layout.people); applyFloorLayer();
+      if (msg.knobs) dbgBuildKnobs(msg.knobs, msg.tuning);
+      simFillDevices(layout || {});
+      dbgBuildPeople((layout && layout.people) || {}, msg.place_keys || [], msg.overrides || {});
+    } else if (msg.type === 'frame') {
+      if (timeStopped()) return;                                  // стоп времени: новые кадры не применяются, сцена и поле стоят
+      lastFrameAt = performance.now(); if (msg.heat) applyHeat(msg.heat); applyFrame(msg);
+      if (msg.signal && msg.signal.lines) dbgPush(msg.signal.lines);
+      setState('live', mode === 'mock' ? 'демо-данные' : 'онлайн');
+    }
+  };
+  ws.onclose = () => { setState('lost', 'нет связи, точки рассеиваются'); setTimeout(connect, retry); retry = Math.min(retry * 2, RECONNECT_MAX_MS); };
+  ws.onerror = () => ws.close();
+}
+
+// ── Кадр ────────────────────────────────────────────────────────────────────
+const clock = new THREE.Clock();
+function frame() {
+  requestAnimationFrame(frame);
+  const rawDt = Math.min(clock.getDelta(), 0.1), dt = timeStopped() ? 0 : rawDt, now = sceneNow(), k = 1 - Math.exp(-SMOOTH_RATE * dt);       // на паузе шаг сцены ноль: всё замирает, камера слушается мыши
+  uniforms.uTime.value += dt;
+  for (let i = 0; i < MAX_PEOPLE; i++) {
+    const s = slots[i]; if (!s) continue;
+    const age = s.age0 + (now - s.t0) / 1000;                  // возраст растёт и без новых кадров: оборванная связь - рассеивание, не заморозка
+    const d = smooth(stale, lost, age);
+    uniforms.uDiffuse.value[i] = d; uniforms.uAlive.value[i] = 1;
+    if (age > lost * 1.15) { dropSlot(i); continue; }
+    const base = i * PTS * 3, t = s.target;
+    for (let j = 0; j < s.n * 3; j++) pos[base + j] += (t[j] - pos[base + j]) * k;
+  }
+  updateGhosts(ghostList, dt); drawGhosts(dt);
+  planView.setView(camera.position, controls.target);                          // стены на луче камера - центр гаснут
+  geo.attributes.position.needsUpdate = true;
+  for (const st of devState.values()) {
+    st.cur.lerp(st.target, 1 - Math.exp(-DEV_SMOOTH_RATE * dt)); st.hot *= Math.exp(-2.5 * dt);
+    devPos.set([st.cur.x, st.cur.y, st.cur.z], st.slot * 3); devOn[st.slot] = st.present && !st.noPoint ? 1 : 0; devHot[st.slot] = st.hot;
+  }
+  devGeo.attributes.position.needsUpdate = devGeo.attributes.aOn.needsUpdate = devGeo.attributes.aHot.needsUpdate = true;
+  if (auraState) {
+    const age = auraState.age0 + (now - auraState.t0) / 1000;               // как у людей: нет свежих данных - аура гаснет, не застывает
+    auraState.act += (auraState.target - auraState.act) * (1 - Math.exp(-AURA_SMOOTH_RATE * dt));
+    auraU.uAct.value = auraState.act; auraU.uFade.value = 1 - smooth(stale, lost, age);
+  }
+  if (camTween) {
+    camTween.t = Math.min(1, camTween.t + dt / 0.9); const e = 1 - Math.pow(1 - camTween.t, 3);
+    camera.position.lerpVectors(camTween.from, camTween.to, e); if (camTween.t >= 1) camTween = null;
+  }
+  if (timeStopped()) controls.autoRotate = false;
+  else if (DEMO) demoCamera(now);
+  else if (!controls.autoRotate && performance.now() - lastTouch > IDLE_ROTATE_S * 1000 && !drag) { controls.autoRotate = true; controls.autoRotateSpeed = 0.5; }
+  controls.update(); fitWalkDashes(); renderer.render(scene, camera);
+  if (shotRequested) { shotRequested = false; sendShot(); }
+  const v = new THREE.Vector3();
+  if (labelsDirty) refreshHiddenLabels();
+  for (const l of labelDefs) {
+    const p = l.hidden ? null : l.getPos(); if (!p) { l.el.style.display = 'none'; continue; }
+    v.copy(p).project(camera);
+    if (v.z > 1 || v.z < -1) { l.el.style.display = 'none'; continue; }
+    l.el.style.display = ''; l.el.style.transform = `translate(${(v.x * 0.5 + 0.5) * innerWidth}px, ${(-v.y * 0.5 + 0.5) * innerHeight}px) translate(-50%, -50%)`;
+  }
+}
+// ── Демо: тур камеры для записи видео без рук ────────────────────────────────
+// ?demo=1: подлёт к каждому человеку по очереди и круг вокруг него вблизи, потом медленный круг над всей квартирой; панель отладки и подсказка скрыты, тур идёт по кольцу.
+const DEMO = new URLSearchParams(location.search).get('demo') !== null;
+const DEMO_PERSON = { seconds: 9, distance: 3.2, turnsPerMin: 5 };       // у человека: 9 с, камера в 3,2 м, оборот за 12 с
+const DEMO_FLAT = { seconds: 24, distance: 11, turnsPerMin: 2 };         // над квартирой: 24 с, камера в 11 м, оборот за 30 с
+const DEMO_GLIDE_S = 2.5;                                                 // перелёт камеры к новой цели: сглаживание цели и расстояния
+let demoStartMs = 0, demoTarget = null, demoDistance = 0;
+function demoPlan(nowMs) {                                                // чей сейчас черёд: люди с местом по кругу, потом квартира
+  const people = [...ghosts.values()].filter(g => g.conf > 0.05 && g.cx != null).sort((a, b) => a.slot - b.slot);
+  const cycle = people.length * DEMO_PERSON.seconds + DEMO_FLAT.seconds, t = ((nowMs - demoStartMs) / 1000) % cycle;
+  const k = Math.floor(t / DEMO_PERSON.seconds);
+  if (k < people.length) return { x: people[k].cx, z: people[k].cz, y: 0.9, ...DEMO_PERSON };
+  const c = bbox ? { x: bbox.cx, z: bbox.cz } : focus;
+  return { x: c.x, z: c.z, y: 0.6, ...DEMO_FLAT };
+}
+function demoCamera(nowMs) {
+  if (!demoStartMs) { demoStartMs = nowMs; demoDistance = camera.position.distanceTo(controls.target); demoTarget = controls.target.clone(); }
+  const plan = demoPlan(nowMs), k = 1 - Math.exp(-(1 / 60) / (DEMO_GLIDE_S / 3));        // за DEMO_GLIDE_S камера проходит 95% пути к цели
+  demoTarget.lerp(new THREE.Vector3(plan.x, plan.y, plan.z), k); demoDistance += (plan.distance - demoDistance) * k;
+  const dir = camera.position.clone().sub(controls.target);
+  controls.target.copy(demoTarget);
+  camera.position.copy(controls.target).add(dir.setLength(demoDistance));
+  controls.autoRotate = true; controls.autoRotateSpeed = plan.turnsPerMin;                 // OrbitControls: скорость 2 это оборот за 30 с при 60 кадрах, то есть 2 оборота в минуту
+}
+if (DEMO) { for (const id of ['dbg', 'hint']) document.getElementById(id).style.display = 'none'; }
+applySceneTheme(); frame(); connect();
+</script>
+</body>
+</html>

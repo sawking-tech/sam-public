@@ -1,0 +1,28 @@
+# Hermes Agent в прокси-режиме SAM (ADR-022): только движок рассуждения.
+# Копируется в HERMES_HOME агента (scripts/acp_probe.py --home); глобальный конфиг Hermes пользователя не трогается.
+# Модель: GLM через z.ai, ключ ZAI_API_KEY и эндпоинт GLM_BASE_URL - из окружения (SAM_ACP_ENV).
+model:
+  provider: zai
+  default: glm-5.3-flash
+
+# Явный пустой список: встроенных инструментов нет; MCP из сессии клиента (MCP стенда) Hermes добавляет сам
+platform_toolsets:
+  acp: []
+
+# Страховка поверх пустого списка: отключение действует последним при любом наборе
+agent:
+  disabled_toolsets: [terminal, file, web, browser, memory, skills, cronjob, todo, delegation, code_execution,
+                      image_gen, tts, vision, kanban]
+
+# Память и профиль - у SAM; своя память Hermes не подмешивается в промпт
+memory:
+  memory_enabled: false
+  user_profile_enabled: false
+  provider: ""
+
+
+# Инструменты MCP по запросу через tool_search: в вызов идут три моста, описания - только найденных. У стенда
+# десятки инструментов MCP, полный список в каждом вызове дороже лишнего круга к модели (замеры - ADR-022)
+tools:
+  tool_search:
+    enabled: "on"

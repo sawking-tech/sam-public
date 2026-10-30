@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="ru" data-theme="auto">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>__TITLE__ - __STATE__</title>
+<!-- заглушка во фрейме приложения (gateway/app_stub.py): палитра и шрифт каркаса, тема - по устройству -->
+<link rel="stylesheet" href="/static/shell/shell.css">
+<link rel="stylesheet" href="/static/shell/sam.css">
+<style>
+  html, body { height: 100%; margin: 0; }
+  body { display: grid; place-items: center; background: var(--ground); color: var(--text); }
+  .stub { max-width: 36ch; padding: 0 20px; text-align: center; }
+  .stub h1 { margin: 0 0 0.4rem; font-size: 1.25rem; font-weight: 500; }
+  .stub p { margin: 0; color: var(--muted); line-height: 1.5; }
+</style>
+</head>
+<body>
+<main class="stub">
+  <h1>__TITLE__ - __STATE__</h1>
+  <p>__HINT__</p>
+</main>
+</body>
+</html>

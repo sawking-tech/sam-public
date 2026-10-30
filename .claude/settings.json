@@ -1,0 +1,24 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python .claude/hooks/lead_brief.py"
+          }
+        ]
+      }
+    ],
+    "SessionEnd": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python -c \"from pathlib import Path; Path('data/voice/bus/lead.alive').unlink(missing_ok=True)\""
+          }
+        ]
+      }
+    ]
+  }
+}

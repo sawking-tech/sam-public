@@ -1,0 +1,30 @@
+# docker-compose.client.yml
+# SAM Client — каждый ПК (Windows/Linux)
+# Запуск:       docker compose -f docker/docker-compose.client.yml up -d
+# С speaker-id: docker compose -f docker/docker-compose.client.yml --profile speaker up -d
+
+name: sam-client
+
+services:
+
+  # Speaker ID: биометрия голоса (будущая аутентификация)
+  # Запуск: docker compose ... --profile speaker up -d
+  speaker-id:
+    image: python:3.11-slim
+    container_name: speaker-id
+    restart: unless-stopped
+    profiles: [speaker]
+    working_dir: /app
+    volumes:
+      - ../audio/speaker-id:/app
+      - speaker-id-data:/data
+    command: python speaker_id.py
+    ports:
+      - "8001:8001"
+    environment:
+      PYANNOTE_TOKEN: ${PYANNOTE_TOKEN}
+      USER_1_NAME:    ${USER_1_NAME}
+      USER_2_NAME:    ${USER_2_NAME}
+
+volumes:
+  speaker-id-data:

@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SAM Monitor</title>
+  <!-- шрифты каркаса лежат рядом (sam.css, @font-face): основное начертание - заранее, без CDN -->
+  <link rel="preload" href="/static/shell/fonts/onest-cyrillic.woff2" as="font" type="font/woff2" crossorigin>
+  <!-- каркас страниц SAM (docs/features/shell.md, раскладка - docs/features/shell-layout.md): лента и ввод - в колонке
+       каркаса на высоту окна, статус - в центре полосы, связь и STOP - справа, задачи, настройки и фильтр - в панели. -->
+  <link rel="stylesheet" href="/static/shell/shell.css">
+  <link rel="stylesheet" href="/static/shell/sam.css">
+  <script src="/shell/config.js"></script>
+  <script src="/static/shell/boot.js"></script>
+  <!-- скрипт монитора - модули gateway/static/monitor (корень сборки main.js); стоит до shell.js: модуль отложен,
+       как defer, и выполняется раньше каркаса -->
+  <script type="module" src="/static/monitor/main.js"></script>
+  <script src="/static/shell/shell.js" defer data-page="monitor" data-fill="1"></script>
+  <style>
+    /* Монитор - прибор наблюдения в каркасе SAM (docs/features/shell-layout.md): лента событий как лог приборов,
+       время - узкой колонкой телеметрии, полоса-метка слева - смысл события. Цвета - только токены «ночного дома»
+       (gateway/static/shell/sam.css); старые имена монитора - их псевдонимы. */
+    :root {
+      --bg: var(--ground); --surface: var(--panel); --surf2: var(--panel-2);
+      --border: var(--line); --border2: var(--line);
+      --m-text: var(--text); --m-muted: var(--muted); --muted2: var(--muted);
+      --red: var(--alarm); --green: var(--ice); --blue: var(--ice); --cyan: var(--ice);
+      --purple: var(--muted); --yellow: var(--amber);
+    }
+
+    /* Лента, ввод и вкладки панели - свои отступы; шкала 13 (служебное) / 15 (реплики) / 17 (каркас) */
+    .mon, .mon * { margin: 0; padding: 0; }
+    .mon { font-size: 13px; line-height: 1.4; }
+    code, pre, .text-note, .llm-req-msg pre { font-family: var(--font-num); }
+
+    /* Колонка каркаса на высоту окна: лента прокручивается внутри, ввод снизу; линии колонки сплошные */
+    #mon { flex: 1; min-height: 0; width: 100%; display: flex; flex-direction: column; padding: 0 var(--gut); }
+    #log { flex: 1; min-height: 0; overflow-y: auto; padding: 8px 0; overflow-anchor: none; }
+    #log::-webkit-scrollbar { width: 4px; }
+    #log::-webkit-scrollbar-thumb { background: var(--line); }
+    #log-older[hidden] { display: none; }
+    /* отладка: запросы к модели, рассуждения, пустые и фоновые вызовы - по флажку во вкладке «Фильтр» */
+    body:not(.show-debug) .ev-debug { display: none; }   /* показ - своей раскладкой строки, без отката к браузерной */
+
+    /* В полосе: статус по центру, связь, счётчик, задачи и STOP справа */
+    .mon-status { display: inline-flex; gap: 14px; align-items: center; min-width: 0; }
+    .mon-status > * { overflow: hidden; text-overflow: ellipsis; }
+    #main-model, #history-off { flex: none; }   /* «кто ведёт» короткое и главное - не сжимается, многоточие у строки сжатия */
+    #conn { display: inline-flex; align-items: center; gap: 8px; }
+    #ev-count { color: var(--muted); }
+    .bar-btn, .stop-btn { height: 34px; padding: 0 10px; border-radius: var(--radius-sam); font: inherit;
+      font-size: 13px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; }
+    .bar-btn { border: 1px solid var(--line); background: var(--panel); color: var(--text); }
+    .bar-btn:hover { border-color: var(--ice); }
+    .stop-btn { border: 1px solid var(--alarm); background: none; color: var(--alarm); font-weight: 600; }
+    .stop-btn:hover { background: color-mix(in srgb, var(--alarm) 14%, transparent); }
+    .stop-btn svg, .bar-btn svg, .fbtn svg { width: 14px; height: 14px; }
+    /* связь - живая точкой (подпись - в title и для чтения с экрана), подпись задач - только на широком */
+    #conn-lbl { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+    @media (max-width: 1599px) { .bar-btn .lbl { display: none; } }
+    /* телефон: в полосе остаются навигация, живая точка, STOP знаком и кнопка панели; задачи и тема - в панели */
+    @media (max-width: 560px) {
+      #ev-count, #tasks-open { display: none; }
+      .stop-btn { padding: 0 8px; } .stop-btn .lbl { position: absolute; width: 1px; height: 1px; overflow: hidden;
+        clip-path: inset(50%); }
+    }
+    /* реплика SAM: имя - ice, сам текст - основной цвет */
+    .ev-talk .t-green ~ .t-green, .ev-talk .t-green ~ * .t-green { color: var(--text); }
+
+    /* ── События: время | полоса-метка | текст ─────────────────────────── */
+    /* колонка текста - minmax(0, 1fr): длинное слово, путь или JSON переносится внутри колонки, а не растит дорожку
+       сетки шире ленты (у 1fr минимум - min-content содержимого) */
+    .ev { display: grid; grid-template-columns: 62px 3px minmax(0, 1fr); column-gap: 10px; padding: 2px 0; align-items: start; }
+    .ev:hover { background: color-mix(in srgb, var(--panel-2) 50%, transparent); }
+    .ev-ts { font: 400 12px/1.6 var(--font-num); font-variant-numeric: tabular-nums; color: var(--muted);
+      text-align: right; user-select: text; cursor: text; padding-top: 1px; }
+    .ev-ts:hover { color: var(--text); }
+    /* метка - полоса цвета смысла: человек amber, SAM ice, голос lilac, инструменты и воркер wire, ошибка alarm */
+    .ev-dot { align-self: stretch; width: 3px; min-height: 16px; font-size: 0; border-radius: 1px;
+      background: currentColor; color: var(--line); }
+    .ev-body { color: var(--muted); min-width: 0; overflow: hidden; overflow-wrap: anywhere; }
+    /* код и вывод (итог песочницы, отказ critic, сообщения запроса к модели) - строки как есть, длинные переносятся */
+    .ev-body pre, .ev-body code, .ev-res-body pre { max-width: 100%; white-space: pre-wrap; word-break: break-word;
+      overflow-wrap: anywhere; }
+    /* реплики крупнее и просторнее, служебное плотнее и тише */
+    .ev.ev-talk { padding: 8px 0; }
+    .ev.ev-talk .ev-ts { padding-top: 3px; }
+    .ev.ev-talk .ev-body { font-size: 15px; line-height: 1.5; color: var(--text); max-width: 80ch; }
+
+    .ev-result { display: grid; grid-template-columns: 62px 3px minmax(0, 1fr); column-gap: 10px; padding: 0 0 2px; }
+    .ev-result .ev-hook { grid-column: 2; font-size: 0; }
+    .ev-result .ev-res-body { grid-column: 3; min-width: 0; color: var(--muted); padding-left: 12px; overflow-wrap: anywhere;
+      border-left: 1px solid var(--line); }
+
+    /* задача агента: сворачиваемая группа его событий, тихо, по линии */
+    .task-section { margin: 2px 0 4px 72px; border-left: 1px solid var(--line); }
+    /* шапка агента - одна строка: имя, шаг и итог сжимаются многоточием, значки и счётчик шагов остаются целыми;
+       полный текст - в подсказке и в развёрнутых шагах */
+    .task-section-header { padding: 4px 10px; cursor: pointer; user-select: none; color: var(--muted);
+      display: flex; align-items: center; gap: 8px; min-width: 0; white-space: nowrap; overflow: hidden; }
+    .task-section-header:hover { color: var(--text); }
+    .task-section-header > * { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+    .task-section-header > .tsh-final { flex-shrink: 3; }   /* итог уступает место раньше имени агента */
+    .task-section-header .toggle { font-size: 10px; width: 12px; }
+    .task-section-header .toggle, .task-section-header .tsh-status, .task-section-header .count { flex: none; }
+    .task-section-header .count { margin-left: auto; font-family: var(--font-num); font-variant-numeric: tabular-nums; }
+    .task-section-body { padding: 2px 0 4px 10px; min-width: 0; }
+    .task-section-body .ev, .task-section-body .ev-group { margin-left: 0; }
+
+    /* длинный текст (аргументы, итог вызова, мета-блок) - начало и «…»; щелчок разворачивает целиком и сворачивает */
+    .clip { cursor: pointer; }
+    .clip .clip-rest { display: none; }
+    /* развёрнутый - переводы строк как есть; break-spaces, а не pre-wrap: пробел в конце строки переносится, а не
+       висит за краем ленты */
+    .clip.open { white-space: break-spaces; }
+    .clip.open .clip-rest { display: inline; }
+    .clip.open .clip-more { display: none; }
+    .clip-more { color: var(--ice); }
+    /* пометка проверки guard на строке вызова: прошёл, идёт, заблокирован */
+    .guard-mark { font-size: 12px; padding: 0 4px; margin-left: 6px; border: 1px solid currentColor;
+      border-radius: var(--radius-sam); white-space: nowrap; }
+    .guard-mark.ok { color: var(--ice); }
+    .guard-mark.wait { color: var(--amber); }
+    .guard-mark.block { color: var(--alarm); }
+    /* лента одной сессии или агента: над лентой - что показано и путь назад ко всем сессиям */
+    #view-bar { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--line);
+      flex-shrink: 0; color: var(--muted); }
+    #view-bar[hidden] { display: none; }
+    #view-label { color: var(--text); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    #view-back { font: inherit; font-size: 13px; height: 30px; padding: 0 10px; border-radius: var(--radius-sam);
+      border: 1px solid var(--amber); background: none; color: var(--amber); cursor: pointer; flex-shrink: 0; }
+    #view-back:hover { background: color-mix(in srgb, var(--amber) 14%, transparent); }
+    .tcard-name { color: var(--text); font-size: 12px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .tcard-res { padding: 6px 10px; color: var(--text); overflow-wrap: anywhere; }
+    .llm-req-head { cursor: pointer; user-select: none; }
+    /* SAM-92: запись, которую модель не видит - скрыта, по флажку видна бледной */
+    .ev.ignored { display: none; }
+    body.show-ignored .ev.ignored { display: grid; opacity: 0.45; text-decoration: line-through; }
+    .llm-req-head:hover .llm-req-model { text-decoration: underline; }
+    .llm-req-body { display: none; margin: 2px 0 4px 0; border-left: 1px solid var(--line); padding-left: 10px; }
+    .llm-req.open .llm-req-body { display: block; }
+    .llm-req-msg pre { margin: 0 0 4px 0; white-space: pre-wrap; font-size: 12px; color: var(--text); }
+    .llm-card { border: 1px solid var(--line); border-radius: 4px; padding: 2px 6px; margin: 2px 0 4px 0; }
+
+    /* цвет метки по смыслу */
+    .dot-amber  { color: var(--amber); }
+    .dot-green, .dot-cyan { color: var(--ice); }
+    .dot-lilac  { color: var(--lilac); }
+    .dot-red    { color: var(--alarm); }
+    .dot-gray, .dot-muted, .dot-blue, .dot-purple { color: var(--line); }
+
+    /* текст: имя человека - amber, SAM - ice, ошибка - alarm, остальное - текст и приглушённый */
+    .t-tool   { color: var(--text); font-weight: 500; }
+    .t-args, .t-muted, .t-dim, .t-purple { color: var(--muted); }
+    .t-amber  { color: var(--amber); }
+    .t-green, .t-blue, .t-cyan { color: var(--ice); }
+    .t-red    { color: var(--alarm); }
+    .t-arg    { color: var(--lilac); }
+    .ev-talk .t-amber + .t-amber { color: var(--text); }
+    .sess { color: var(--muted); font-size: 12px; margin-right: 5px; }
+    .ev-div { height: 1px; background: var(--line); margin: 6px 0 6px 72px; opacity: 0.5; }
+
+    .stage-tree { color: var(--muted); }
+    .stage-tree .s-done { color: var(--ice); }
+    .stage-tree .s-running { color: var(--amber); }
+    .stage-tree .s-failed { color: var(--alarm); }
+    .stage-tree .s-skipped { color: var(--muted); }
+
+    .log-empty { height: 100%; display: flex; align-items: center; justify-content: center; color: var(--muted); }
+
+    /* ── Вкладки панели: задачи, настройки, фильтр ───────────────────── */
+    #tasks-list { display: flex; flex-direction: column; gap: 8px; }
+    .mon-tab { display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; font-size: 13px; }   /* карточка не шире панели */
+    #tab-filter label { display: flex; align-items: center; gap: 8px; color: var(--text); }
+    /* анкета дома */
+    .household-row { display: flex; flex-direction: column; gap: 6px; padding-bottom: 12px; }
+    .household-row .sam-input { width: 100%; box-sizing: border-box; }
+    #household-msg { color: var(--muted); font-size: 12px; overflow-wrap: anywhere; }
+    #household-msg.err { color: var(--alarm); }
+    /* душа: раздел, редактор, история версий с откатом */
+    #tab-soul .sam-form { min-width: 0; }
+    #tab-soul .sam-form > * { min-width: 0; max-width: 100%; }
+    #soul-text, #soul-secret, #soul-section { width: 100%; box-sizing: border-box; }
+    #soul-text { min-height: 320px; font: 12px/1.45 var(--font-num); white-space: pre-wrap; }
+    #soul-msg { overflow-wrap: anywhere; }
+    /* окно удаления сессии: id для подтверждения и ключ команд для сессии не задачи */
+    /* сброс .mon * снимает margin: auto, которым браузер ставит модальное окно в центр, и отступы кнопок каркаса */
+    #sess-del-dlg { margin: auto; width: min(440px, calc(100vw - 32px)); box-sizing: border-box; padding: 16px; color: var(--text);
+                    background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius-sam); }
+    #sess-del-dlg::backdrop { background: rgba(0, 0, 0, .45); }
+    #sess-del-dlg p { margin: 0; overflow-wrap: anywhere; }
+    #sess-del-dlg .sam-input { width: 100%; box-sizing: border-box; }
+    #sess-del-dlg .row { display: flex; gap: 8px; flex-wrap: wrap; }
+    #sess-del-dlg .sam-btn { padding: 0 14px; }
+    #sess-del-dlg [hidden] { display: none; }
+    #soul-meta, #soul-msg { color: var(--muted); font-size: 12px; }
+    #soul-msg.err { color: var(--alarm); }
+    #soul-history { display: flex; flex-direction: column; gap: 4px; }
+    .soul-ver { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 12px; }
+    .soul-ver .sam-num { color: var(--text); }
+    .soul-ver .soul-info { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .mon-tab .row { display: flex; flex-wrap: wrap; gap: 6px; }
+    .tcard { border: 1px solid var(--line); border-radius: var(--radius-sam); background: var(--panel); overflow: hidden; }
+    /* шапка карточки: id и устройство сжимаются многоточием, кнопки и статус целые; не влезло - статус на вторую строку */
+    .tcard-head { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 6px 10px;
+      border-bottom: 1px solid var(--line); }
+    .tcard-id { color: var(--text); font-family: var(--font-num); font-size: 12px; min-width: 0; overflow: hidden;
+      text-overflow: ellipsis; white-space: nowrap; }
+    .tcard-dev { color: var(--muted); font-size: 12px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .tcard-st { margin-left: auto; font-size: 12px; padding: 1px 6px; border-radius: var(--radius-sam);
+      border: 1px solid currentColor; }
+    .tcard-st.running { color: var(--ice); }
+    .tcard-st.done { color: var(--muted); }
+    .tcard-st.failed { color: var(--alarm); }
+    .tcard-st.cancelled, .tcard-st.pending { color: var(--amber); }
+    .tcard-desc { padding: 6px 10px; color: var(--muted); border-bottom: 1px solid var(--line);
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .tcard-stages { padding: 6px 10px; display: flex; flex-direction: column; gap: 2px; }
+    .ts-row { display: flex; align-items: center; gap: 6px; color: var(--muted); }
+    .ts-row.running { color: var(--ice); }
+    .ts-row.done { color: var(--text); }
+    .ts-row.failed { color: var(--alarm); }
+    .ts-dot { flex-shrink: 0; width: 12px; text-align: center; }
+    .ts-name { min-width: 0; overflow-wrap: anywhere; }
+    .tasks-empty { padding: 14px; text-align: center; color: var(--muted); }
+    #tasks-archive { align-self: center; padding: 0 14px; }   /* сброс .mon * снимает отступ кнопки каркаса */
+    #tasks-archive[hidden] { display: none; }
+
+    .fate-icon { display: inline-flex; vertical-align: -2px; color: var(--lilac); }
+    .fate-icon svg { width: 14px; height: 14px; }
+    .fate-unknown { opacity: 0.6; }
+    .fate-unknown sup { color: var(--amber); font-weight: 600; margin-left: 1px; }
+    /* текст основной модели без озвучки (note): переводы строк сохраняются, длинные строки переносятся */
+    .text-note { margin: 2px 0; padding: 6px 10px; white-space: pre-wrap; overflow-wrap: anywhere; font-size: 13px;
+      line-height: 1.45; color: var(--text); background: var(--panel); border-left: 2px solid var(--ice); }
+
+    .cancel-btn, .view-sess-btn, .pill { font: inherit; font-size: 12px; padding: 2px 8px; border-radius: var(--radius-sam);
+      cursor: pointer; background: none; flex-shrink: 0; }
+    .cancel-btn { border: 1px solid var(--alarm); color: var(--alarm); }
+    .cancel-btn:hover { background: color-mix(in srgb, var(--alarm) 14%, transparent); }
+    .view-sess-btn, .pill { border: 1px solid var(--line); color: var(--muted); }
+    .view-sess-btn:hover, .pill:hover { border-color: var(--ice); color: var(--text); }
+
+    /* ── Ввод ─────────────────────────────────────────────────────────── */
+    #footer { border-top: 1px solid var(--line); padding: 10px 0; display: flex; align-items: center; gap: 8px;
+      flex-shrink: 0; flex-wrap: wrap; background: var(--ground); }
+    .foot-lbl { color: var(--muted); flex-shrink: 0; }
+    #sess-sel { background: var(--panel); border: 1px solid var(--line); color: var(--text); font: inherit;
+      padding: 4px 6px; border-radius: var(--radius-sam); flex-shrink: 0; max-width: 40%; }
+    .prompt { color: var(--amber); font-weight: 600; flex-shrink: 0; }
+    #inp { flex: 1; min-width: 12rem; background: none; border: none; border-bottom: 1px solid var(--line);
+      color: var(--text); font: inherit; font-size: 15px; padding: 4px 2px; outline: none; }
+    #inp:focus { border-bottom-color: var(--amber); }
+    #inp::placeholder { color: var(--muted); }
+    .fbtn { background: none; border: 1px solid var(--line); color: var(--muted); font: inherit; font-size: 13px;
+      height: 34px; padding: 0 12px; border-radius: var(--radius-sam); cursor: pointer; flex-shrink: 0;
+      display: inline-flex; align-items: center; gap: 6px; }
+    .fbtn:hover { border-color: var(--amber); color: var(--text); }
+    .fbtn.primary { border-color: var(--amber); color: var(--amber); }
+    .fbtn.primary:hover { background: color-mix(in srgb, var(--amber) 14%, transparent); }
+    /* подсказка команд по «/» (SAM-99) над строкой ввода */
+    #cmd-pop { display: none; max-height: 220px; overflow-y: auto; flex-shrink: 0; border-top: 1px solid var(--line);
+      background: var(--panel); }
+    #cmd-pop.open { display: block; }
+    .cmd-item { display: flex; gap: 10px; padding: 4px 12px; cursor: pointer; white-space: nowrap; }
+    .cmd-item.sel, .cmd-item:hover { background: var(--panel-2); }
+    .cmd-name { color: var(--amber); font-family: var(--font-num); }
+    .cmd-src { color: var(--muted); }
+    .cmd-desc { color: var(--muted); overflow: hidden; text-overflow: ellipsis; }
+    .img-thumb { height: 48px; border-radius: var(--radius-sam); border: 1px solid var(--line); }
+    .img-del { position: absolute; top: -6px; right: -6px; width: 18px; height: 18px; border-radius: 999px;
+      background: var(--alarm); color: var(--ground); border: none; cursor: pointer; font-size: 11px; line-height: 1; }
+  </style>
+</head>
+<body>
+
+<!-- в полосу каркаса (statusbar/tools ниже переносит скрипт): статус по центру, связь, счётчик и STOP справа -->
+<span class="mon-status" id="mon-status">
+  <span id="main-model" title="Основная модель SAM: кто ведёт ход сейчас (SAM-91)">ведёт: …</span>
+  <span id="compression" title="Сжатие истории по сессиям из /health (SAM-97)"></span>
+  <span id="history-off" class="t-red" hidden title="Настройки: «Отладка: не сохранять историю»">история не сохраняется</span>
+</span>
+<span id="mon-tools" style="display:contents">
+  <span id="conn" title="Связь монитора со шлюзом"><span id="conn-dot" class="sam-live"></span><span id="conn-lbl">нет связи</span>
+    <span id="ev-count" class="sam-num" title="событий в ленте"></span></span>
+  <button class="bar-btn" type="button" id="tasks-open" onclick="SAMShell.openPanel({tab: 'tasks'})"
+          title="Задачи агентов" aria-label="Задачи агентов"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M3 4h10M3 8h10M3 12h6"/></svg><span class="lbl">задачи</span> <span id="task-count" class="sam-num">0</span></button>
+  <button class="stop-btn" type="button" onclick="panicCancel()" title="Прервать всё: все идущие ходы во всех сессиях"><svg viewBox="0 0 16 16" aria-hidden="true"><rect x="3" y="3" width="10" height="10" rx="1" fill="currentColor"/></svg><span class="lbl">STOP</span></button>
+</span>
+
+<!-- вкладки панели: задачи, настройки, душа, фильтр ленты; на странице не видны, каркас берёт их в панель -->
+<div hidden>
+<div class="mon mon-tab" id="tab-tasks"><div id="tasks-list"><div class="tasks-empty">задач пока нет</div></div></div>
+<div class="mon mon-tab" id="tab-settings">
+  <form class="sam-form" id="settings-panel" onsubmit="return false">
+    <div id="settings-list" class="sam-form"></div>
+    <hr class="sam-sep">
+    <button type="button" class="sam-btn danger" onclick="resetSettings()">Сбросить все</button>
+  </form>
+</div>
+<div class="mon mon-tab" id="tab-household">
+  <form class="sam-form" onsubmit="return false">
+    <span class="sam-label">Кто живёт дома. Необязательно: SAM спросит сама.</span>
+    <div id="household-list" class="sam-form"></div>
+    <button type="button" class="sam-btn" onclick="addHouseholdMember()">Добавить</button>
+    <div id="household-msg" role="status"></div>
+  </form>
+</div>
+<div class="mon mon-tab" id="tab-soul">
+  <form class="sam-form" onsubmit="return false">
+    <label class="sam-field"><span class="sam-label"><span>Раздел души</span><span class="sam-key">характер SAM</span></span>
+      <select id="soul-section" aria-label="Раздел души" onchange="pickSoulSection(this)"></select></label>
+    <div id="soul-meta"></div>
+    <textarea id="soul-text" spellcheck="false" aria-label="Текст раздела"></textarea>
+    <label class="sam-field"><span class="sam-label"><span>Ключ команд</span><span class="sam-key">не сохраняется</span></span>
+      <input type="password" id="soul-secret" class="sam-input" autocomplete="off" inputmode="numeric" aria-label="Ключ команд"></label>
+    <div class="row">
+      <button type="button" class="sam-btn primary" onclick="saveSoulSection()">Сохранить</button>
+      <button type="button" class="sam-btn" onclick="discardSoulEdit()">Отменить правку</button>
+    </div>
+    <div id="soul-msg" role="status"></div>
+    <hr class="sam-sep">
+    <span class="sam-label">История версий</span>
+    <div id="soul-history"></div>
+  </form>
+</div>
+<div class="mon mon-tab" id="tab-filter">
+  <label><input type="checkbox" id="auto-btn" checked onchange="toggleAuto()"> держать ленту внизу</label>
+  <label><input type="checkbox" onchange="document.body.classList.toggle('show-ignored', this.checked)">
+    показывать скрытые реплики</label>
+  <label><input type="checkbox" id="debug-btn" onchange="toggleDebug(this.checked)">
+    отладка: запросы к модели, рассуждения, фоновые и пустые вызовы</label>
+  <div class="row"><button class="pill" type="button" onclick="clearLog()">очистить ленту</button></div>
+</div>
+</div>
+
+<main class="wrap mon" id="mon">
+  <div id="view-bar" hidden role="status">
+    <button id="view-back" type="button" onclick="setView(null)" title="Вернуться к ленте всех сессий (и кнопка «назад» браузера)">← все сессии</button>
+    <span id="view-label"></span>
+  </div>
+  <div id="log" class="sam-grid">
+    <div id="log-older" class="sam-skel" hidden aria-label="загружаю раньше"><i></i><i></i><i></i></div>
+    <div class="log-empty" id="log-empty">
+      <span>жду событий…</span>
+    </div>
+  </div>
+<div id="cmd-pop"></div>
+<div id="footer">
+  <span class="foot-lbl">Сессия</span>
+  <select id="sess-sel" title="Чья лента видна и куда уходит реплика; «все сессии» - лента всех, реплика - в устройство этой машины"><option value="">все сессии</option></select>
+  <button class="fbtn" id="sess-del" type="button" hidden onclick="deleteSession()" title="Удалить выбранную сессию навсегда: история, архив, заметки">удалить</button>
+  <span id="target-hint" class="foot-lbl"></span>
+  <span class="prompt">›</span>
+  <input id="inp" type="text" placeholder="Сообщение SAM: / - команды, вставка картинки, ↑↓ - история, Esc - снять последнее" autocomplete="off"/>
+  <button class="fbtn" onclick="document.getElementById('img-picker').click()" title="Прикрепить картинку (или вставь Ctrl+V, перетащи)" aria-label="Прикрепить картинку"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><path d="M10.5 4.5 5.8 9.2a1.5 1.5 0 0 0 2.1 2.1l5-5a3 3 0 0 0-4.2-4.2l-5 5a4.5 4.5 0 0 0 6.4 6.4l4.2-4.2"/></svg></button>
+  <input id="img-picker" type="file" accept="image/*" multiple style="display:none" onchange="onImagePicked(event)"/>
+  <button class="fbtn primary" onclick="doSend()">Отправить</button>
+</div>
+<dialog id="sess-del-dlg" aria-labelledby="sess-del-title">
+  <form method="dialog" class="sam-form" onsubmit="return confirmDeleteSession(event)">
+    <p id="sess-del-title"></p>
+    <label class="sam-field"><span class="sam-label"><span>Для подтверждения введи её id</span></span>
+      <input id="sess-del-id" class="sam-input" autocomplete="off" spellcheck="false" aria-label="id сессии"></label>
+    <label class="sam-field" id="sess-del-key-row"><span class="sam-label"><span>Ключ команд</span><span class="sam-key">не сохраняется</span></span>
+      <input type="password" id="sess-del-key" class="sam-input" autocomplete="off" inputmode="numeric" aria-label="Ключ команд"></label>
+    <p id="sess-del-msg" class="t-red" hidden></p>
+    <div class="row">
+      <button type="submit" class="sam-btn primary">Удалить</button>
+      <button type="button" class="sam-btn" onclick="document.getElementById('sess-del-dlg').close()">Отмена</button>
+    </div>
+  </form>
+</dialog>
+<div id="img-tray"style="display:none;padding:6px 0;border-top:1px solid var(--border);gap:8px;flex-wrap:wrap;"></div>
+</main>
+</body>
+</html>

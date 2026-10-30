@@ -1,0 +1,352 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SAM / приложения</title>
+<!-- страница шлюза, встроенное приложение apps (gateway/apps_api.py); каркас SAM - docs/features/shell.md -->
+<link rel="preload" href="/static/shell/fonts/onest-cyrillic.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="/static/shell/shell.css">
+<link rel="stylesheet" href="/static/shell/sam.css">
+<script src="/shell/config.js"></script>
+<script src="/static/shell/boot.js"></script>
+<script src="/static/shell/shell.js" defer data-page="apps"></script>
+<style>
+  /* Домашний экран приложений: плитка - миниатюра страницы, имя под ней, живая точка состояния. Подробности,
+     настройки и удаление - в панели каркаса по шестерёнке. Цвета, шрифт, кнопки и поля - каркаса (sam.css). */
+  .home { padding-block: 1.6rem 3rem; min-height: calc(100dvh - var(--barh)); }
+  .home .lead { color: var(--muted); margin: 0 0 1.6rem; }
+  .row { display: grid; gap: 1.6rem 1.2rem; grid-template-columns: repeat(auto-fill, minmax(min(190px, 40vw), 1fr));
+         margin: 0 0 2.2rem; padding: 0; list-style: none; }
+  .row-title { font-size: 15px; font-weight: 500; color: var(--muted); margin: 0 0 0.8rem; }
+
+  .tile { position: relative; display: grid; grid-template-columns: minmax(0, 1fr); gap: 0.5rem; min-width: 0; }
+  .shot { position: relative; display: block; aspect-ratio: 4 / 3; border-radius: var(--radius-sam); overflow: hidden;
+          border: 1px solid var(--line); background: var(--panel); color: var(--text);
+          transition: border-color var(--dur-fast) var(--ease-out); }
+  .shot:hover { border-color: var(--ice); }
+  .shot:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+  /* миниатюра - сама страница приложения в песочнице, уменьшенная; клики идут ссылке, не странице */
+  .shot iframe { position: absolute; top: 0; left: 0; width: 1200px; height: 900px; border: 0; background: var(--panel);
+                 transform-origin: 0 0; transform: scale(var(--k, 0.15)); pointer-events: none; }
+  .shot .glyph { position: absolute; inset: 0; display: grid; place-items: center; color: var(--ice); }
+  .shot .glyph svg { width: 42%; height: 42%; }
+  /* лого, которое нарисовала SAM (поле icon манифеста): картинкой, скрипты SVG в img не исполняются */
+  .shot .logo { position: absolute; inset: 0; margin: auto; width: 46%; height: 46%; object-fit: contain; }
+  .tile.paused .shot iframe, .tile.down .shot .glyph, .tile.paused .shot .logo, .tile.down .shot .logo {
+    opacity: 0.35; filter: grayscale(1); }
+  .shot .hint { position: absolute; inset: auto 0 0 0; padding: 0.35rem 0.6rem; font-size: 13px;
+                color: var(--muted); background: color-mix(in srgb, var(--panel) 88%, transparent); }
+
+  .thumb { position: relative; }
+  /* приостановить и подробнее - на углу миниатюры: под ней остаётся только имя */
+  .tools { position: absolute; top: 6px; right: 6px; display: flex; gap: 4px; }
+  .under { padding-inline: 0.2rem; }
+  .name { min-width: 0; font-weight: 500; text-align: center; line-height: 1.3; overflow: hidden;
+          display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow-wrap: anywhere; }
+  /* точка состояния - живая точка каркаса: светится цветом смысла */
+  .dot { display: inline-block; width: 8px; height: 8px; margin-right: 0.45rem; border-radius: 999px;
+         color: var(--ice); background: currentColor; box-shadow: var(--glow) currentColor; vertical-align: 0.08em; }
+  .paused .dot { color: var(--muted); box-shadow: none; }
+  .down .dot { color: var(--alarm); }
+  .check .dot { color: var(--wire); box-shadow: none; }
+  .tools .sam-btn { width: 36px; padding: 0; background: color-mix(in srgb, var(--panel) 86%, transparent);
+         backdrop-filter: blur(6px); }
+  .tools .sam-btn[hidden] { display: none; }
+
+  .add { display: grid; place-items: center; aspect-ratio: 4 / 3; border-radius: var(--radius-sam);
+         border: 1px dashed var(--line); background: none; color: var(--muted); font: inherit; cursor: pointer; }
+  .add:hover { color: var(--text); border-color: var(--ice); }
+  .empty { max-width: 34rem; text-align: left; justify-items: start; }
+  .empty p { margin: 0; }
+  .empty q { color: var(--amber); }
+  .errors { color: var(--alarm); font-size: 13px; }
+
+  /* панель приложения (каркас, SAMShell.openPanel) */
+  .card { display: grid; gap: 1.1rem; font-size: 15px; }
+  .card p { margin: 0; }
+  .card .ask { padding-left: 0.8rem; border-left: 2px solid var(--amber); }
+  .card dl { display: grid; grid-template-columns: auto 1fr; gap: 0.3rem 0.8rem; margin: 0; font-size: 13px; }
+  .card dt { color: var(--muted); }
+  .card dd { margin: 0; overflow-wrap: anywhere; }
+  .acts { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+  .say { min-height: 1.4em; color: var(--muted); font-size: 13px; }
+  .say.bad { color: var(--alarm); }
+  /* удаление - в самом низу: сначала только кнопка; по нажатию - предупреждение, поле slug и подтверждение */
+  /* блок - danger-zone: класс danger у кнопок красит их, а правила блока (отступ, рамка, сетка) на кнопку
+     «Удалить навсегда» ложились и разводили её с «Отменой» */
+  .danger-zone { margin-top: 1.6rem; padding-top: 1rem; border-top: 1px solid var(--line); display: grid; gap: 0.6rem;
+                 color: var(--muted); font-size: 13px; }
+  .danger-zone > .sam-btn { justify-self: start; }
+  .danger-zone .confirm { display: grid; gap: 0.6rem; }
+  .danger-zone [hidden] { display: none; }
+  .danger-zone .confirm p { margin: 0; overflow-wrap: anywhere; }
+</style>
+</head>
+<body>
+<main class="wrap home sam-grid">
+  <h1 class="sam-h1">Приложения</h1>
+  <p class="lead">Страницы, которые SAM сделала по просьбе, и её встроенные приложения: эта страница, монитор и радар.</p>
+  <h2 class="row-title" id="pinned-title">Закреплённые</h2>
+  <ul class="row" id="pinned" aria-labelledby="pinned-title"></ul>
+  <h2 class="row-title" id="rest-title" hidden>Остальные</h2>
+  <ul class="row" id="rest" aria-labelledby="rest-title"></ul>
+  <div class="sam-empty empty" id="empty" hidden>
+    <p>Своих приложений пока нет.</p>
+    <p>Попроси SAM голосом или в мониторе, например: <q>сделай страницу с графиком температуры за неделю</q>. Оно
+       появится здесь, а закреплённое - ещё и в полосе сверху.</p>
+  </div>
+  <p class="errors" id="errors"></p>
+</main>
+
+<template id="icons">
+  <svg data-i="pause" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/></svg>
+  <svg data-i="play" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5.5v13a1 1 0 0 0 1.5.86l10.4-6.5a1 1 0 0 0 0-1.72L9.5 4.64A1 1 0 0 0 8 5.5z"/></svg>
+  <svg data-i="gear" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>
+  <svg data-i="apps" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true"><rect x="8" y="8" width="13" height="13" rx="3"/><rect x="27" y="8" width="13" height="13" rx="3"/><rect x="8" y="27" width="13" height="13" rx="3"/><rect x="27" y="27" width="13" height="13" rx="3"/></svg>
+  <svg data-i="monitor" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M8 14h32M8 22h24M8 30h28M8 38h16"/></svg>
+  <svg data-i="radar" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true"><circle cx="24" cy="24" r="18"/><circle cx="24" cy="24" r="10"/><circle cx="24" cy="24" r="2.5" fill="currentColor"/><path d="M24 24 37 11" stroke-linecap="round"/></svg>
+</template>
+
+<!-- список приложений шлюз кладёт в страницу при отдаче (__APPS__): плитки рисуются сразу -->
+<script id="apps-data" type="application/json">__APPS__</script>
+<script>
+/* Плитки по slug: обновление раз в 10 с меняет только то, что изменилось, - миниатюры не перезагружаются. */
+const POLL_MS = 10000;
+const THUMB_W = 1200;                       // ширина страницы в миниатюре, px (как .shot iframe)
+const $ = (id) => document.getElementById(id);
+const tiles = new Map();
+let data = JSON.parse($("apps-data").textContent);
+
+const icon = (name) => $("icons").content.querySelector(`[data-i="${name}"]`).cloneNode(true);
+function el(tag, attrs, ...kids) {
+  const node = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs || {})) if (v !== null && v !== undefined && v !== false) node.setAttribute(k, v);
+  node.append(...kids);
+  return node;
+}
+const API = "/sam/apps";                    // API стенда на шлюзе (gateway/apps_api.py): страница - его же origin
+const gatewayUrl = (path) => new URL(path, location.href).href;
+const openUrl = (a) => gatewayUrl(a.builtin ? a.url : a.view);
+// встроенное без своего процесса (приложения, монитор) - страница шлюза: отсюда его не приостановить
+const fixed = (a) => a.builtin && !a.control;
+const svgSrc = (svg) => `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
+// адрес в тексте переносится после «/», а не посреди слова пути
+const urlText = (u) => u.split("/").flatMap((part, i, all) => i < all.length - 1 ? [part + "/", document.createElement("wbr")] : [part]);
+// приостановленное человеком - из манифеста; не ответившее на пинг - «не отвечает»
+const state = (a) => a.wanted === "stopped" ? "paused" : (a.down ? "down" : "run");
+const stateText = { run: "работает", paused: "приостановлено", down: "не отвечает" };
+// пинг страницы прямо из браузера: адрес встроенного или порт приложения на этой машине; ответ любой - живо
+const pageUrl = (a) => a.host_port ? `${location.protocol}//${location.hostname}:${a.host_port}/` : a.url;
+// порт своего приложения открыт только на этой машине (apps.py, 127.0.0.1): с другого устройства пинг всегда упал бы
+const LOOPBACK = new Set(["127.0.0.1", "localhost", "[::1]"]);
+function ping(a) {
+  if (a.host_port && !LOOPBACK.has(location.hostname)) return;
+  fetch(pageUrl(a), { mode: "no-cors", cache: "no-store" }).then(() => false, () => true).then((down) => {
+    a.down = down;
+    const t = tiles.get(a.slug);
+    if (t) fillTile(t, a);
+  });
+}
+
+async function act(a, action, body) {
+  const res = await fetch(`${API}/${encodeURIComponent(a.slug)}/${action}`,
+    { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body || {}) });
+  const out = await res.json().catch(() => ({}));
+  return { ok: res.ok && out.ok !== false, text: out.text || out.detail || `ошибка ${res.status}`, out };
+}
+
+function makeTile(a) {
+  const shot = el("a", { class: "shot", href: openUrl(a), "aria-label": `Открыть ${a.name}` });
+  const label = el("span", {});
+  const dot = el("span", { class: "dot", role: "img" });
+  const name = el("span", { class: "name" }, dot, label);
+  const toggle = el("button", { class: "sam-btn icon", type: "button" });
+  const gear = el("button", { class: "sam-btn icon", type: "button", "aria-label": `Подробнее о ${a.name}`, title: "Подробнее" },
+                  icon("gear"));
+  const li = el("li", { class: "tile" }, el("div", { class: "thumb" }, shot, el("div", { class: "tools" }, toggle, gear)),
+                el("div", { class: "under" }, name));
+  toggle.addEventListener("click", async () => {
+    const t = tiles.get(a.slug);
+    toggle.disabled = true;
+    await act(t.a, state(t.a) === "paused" || state(t.a) === "down" ? "start" : "stop");
+    toggle.disabled = false;
+    load();
+  });
+  gear.addEventListener("click", () => openCard(tiles.get(a.slug).a, gear));
+  const t = { li, shot, label, dot, toggle, a: null, src: undefined };     // src: что сейчас в миниатюре
+  tiles.set(a.slug, t);
+  return t;
+}
+
+function fillTile(t, a) {
+  t.a = a;
+  const s = state(a);
+  t.li.className = `tile ${s}`;
+  t.label.textContent = a.name;
+  t.dot.setAttribute("aria-label", stateText[s]);
+  t.dot.title = stateText[s];
+  t.shot.href = openUrl(a);
+  const pausing = s === "run";
+  t.toggle.replaceChildren(icon(pausing ? "pause" : "play"));
+  t.toggle.setAttribute("aria-label", `${pausing ? "Приостановить" : "Продолжить"} ${a.name}`);
+  t.toggle.title = pausing ? "Приостановить" : "Продолжить";
+  t.toggle.hidden = fixed(a);
+  // миниатюра: лого от SAM, если есть; иначе у встроенных - знак, у своих - сама страница, пока она работает;
+  // src не трогается без нужды
+  const src = a.icon ? svgSrc(a.icon) : a.builtin || s !== "run" ? null : gatewayUrl(a.path);
+  if (src === t.src) return;
+  t.src = src;
+  if (a.icon) t.shot.replaceChildren(el("img", { class: "logo", src, alt: "" }));
+  else if (a.builtin) t.shot.replaceChildren(el("span", { class: "glyph" }, icon(a.slug)));
+  else if (src) {
+    const f = el("iframe", { src, sandbox: "allow-scripts", loading: "lazy", tabindex: "-1", "aria-hidden": "true",
+                             title: "" });
+    t.shot.replaceChildren(f);
+    scale(t.shot);
+  } else t.shot.replaceChildren(el("span", { class: "hint" }, stateText[s]));
+}
+
+function scale(shot) {
+  shot.style.setProperty("--k", (shot.clientWidth / THUMB_W).toFixed(4));
+}
+new ResizeObserver((entries) => entries.forEach((e) => scale(e.target)))
+  .observe(document.documentElement);
+addEventListener("resize", () => document.querySelectorAll(".shot").forEach(scale));
+
+function render() {
+  const pinned = [], rest = [];
+  const seen = new Set();
+  for (const a of data.apps) {
+    seen.add(a.slug);
+    const t = tiles.get(a.slug) || makeTile(a);
+    fillTile(t, a);
+    (a.pinned ? pinned : rest).push(t.li);
+  }
+  for (const [slug, t] of tiles) if (!seen.has(slug)) { t.li.remove(); tiles.delete(slug); }
+  for (const slug of data.removed || []) {
+    const add = el("button", { class: "add", type: "button" }, `Поставить ${slug === "radar" ? "радар" : slug}`);
+    add.addEventListener("click", async () => { add.disabled = true; await act({ slug }, "install"); load(); });
+    pinned.push(el("li", { class: "tile" }, add));
+  }
+  $("pinned").replaceChildren(...pinned);
+  $("rest").replaceChildren(...rest);
+  $("rest-title").hidden = !rest.length;
+  $("empty").hidden = data.apps.some((a) => !a.builtin);
+  $("errors").textContent = (data.errors || []).join("; ");
+  document.querySelectorAll(".shot").forEach(scale);
+}
+
+async function load() {
+  try {
+    const known = new Map(data.apps.map((a) => [a.slug, a.down]));
+    data = await (await fetch(API)).json();
+    for (const a of data.apps) a.down = known.get(a.slug);   // «не отвечает» живёт до следующего пинга, плитка не мигает
+  } catch (e) {
+    $("errors").textContent = `шлюз не отвечает: ${e}`;
+    return;
+  }
+  render();
+  data.apps.forEach(ping);
+}
+
+/* ── панель приложения: описание, действия, настройки, внизу удаление ── */
+function openCard(a, from) {
+  const say = el("p", { class: "say", role: "status" });
+  const done = async (r) => { say.textContent = r.text; say.className = r.ok ? "say" : "say bad"; await load(); };
+  const facts = el("dl", {},
+    ...(a.created ? [el("dt", {}, "Сделано"), el("dd", {}, a.created)] : []),
+    el("dt", {}, "Адрес"), el("dd", {}, el("a", { href: openUrl(a) }, ...urlText(openUrl(a)))),
+    el("dt", {}, "Slug"), el("dd", {}, a.slug));
+  const parts = [];
+  if (a.description) parts.push(el("p", {}, a.description));
+  if (a.request) parts.push(el("p", { class: "ask" }, `«${a.request}»`));
+  parts.push(facts);
+  if (a.functions && a.functions.length) {
+    parts.push(el("h3", {}, "Что SAM умеет через него"),
+               el("p", {}, ...a.functions.flatMap((f, i) => [i ? ", " : "", el("span", { title: f.description }, f.name)])));
+  }
+  const acts = el("div", { class: "acts" });
+  if (!a.builtin) {
+    const pin = el("button", { class: "sam-btn", type: "button" }, a.pinned ? "Открепить" : "Закрепить");
+    pin.addEventListener("click", async () => { const r = await act(a, a.pinned ? "unpin" : "pin"); a.pinned = !a.pinned;
+      pin.textContent = a.pinned ? "Открепить" : "Закрепить"; done(r); });
+    acts.append(pin);
+  }
+  if (!fixed(a)) {
+    const s = state(a);
+    const toggle = el("button", { class: "sam-btn", type: "button" }, s === "run" ? "Приостановить" : "Продолжить");
+    toggle.addEventListener("click", async () => done(await act(a, s === "run" ? "stop" : "start")));
+    acts.append(toggle);
+  }
+  if (acts.childElementCount) parts.push(acts);
+  parts.push(say);
+  const node = el("div", { class: "card" }, ...parts);
+  if (!a.builtin && a.settings && a.settings.length) node.append(settingsForm(a, done));
+  if (a.removable !== false) node.append(deleteBlock(a, done));
+  SAMShell.openPanel({ title: a.name, node });
+}
+
+function settingsForm(a, done) {
+  const form = el("form", { class: "sam-form" }, el("h3", { class: "sam-h3" }, "Настройки"));
+  const inputs = {};
+  for (const f of a.settings) {
+    let input;
+    if (f.type === "bool") input = el("input", { type: "checkbox" });
+    else if (f.type === "choice") input = el("select", {}, ...f.options.map((o) => el("option", { value: o }, o)));
+    else input = el("input", { type: f.type === "number" ? "number" : "text", step: f.type === "number" ? "any" : null });
+    inputs[f.name] = { f, input };
+    form.append(f.type === "bool" ? el("label", { class: "sam-switch" }, el("span", {}, f.label), input)
+                                  : el("label", { class: "sam-field" }, el("span", { class: "sam-label" }, f.label), input));
+  }
+  const save = el("button", { class: "sam-btn primary", type: "submit" }, "Сохранить и перезапустить");
+  form.append(save);
+  fetch(`${API}/${encodeURIComponent(a.slug)}/settings`).then((r) => r.json()).then(({ values }) => {
+    for (const [name, { f, input }] of Object.entries(inputs)) {
+      if (f.type === "bool") input.checked = !!values[name]; else input.value = values[name] ?? "";
+    }
+  });
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const values = {};
+    for (const [name, { f, input }] of Object.entries(inputs)) {
+      values[name] = f.type === "bool" ? input.checked : f.type === "number" ? Number(input.value) : input.value;
+    }
+    save.disabled = true;
+    await done(await act(a, "settings", { values }));
+    save.disabled = false;
+  });
+  return form;
+}
+
+function deleteBlock(a, done) {
+  // сначала только приглушённая кнопка; по нажатию - предупреждение, поле slug, подтверждение (неактивно до точного
+  // ввода) и «Отмена», которая сворачивает обратно; фокус - в поле
+  const input = el("input", { class: "sam-input", type: "text", autocomplete: "off", spellcheck: "false",
+                              "aria-label": `Введи ${a.slug}` });
+  const del = el("button", { class: "sam-btn danger", type: "button", disabled: "" }, "Удалить навсегда");
+  const cancel = el("button", { class: "sam-btn", type: "button" }, "Отмена");
+  const what = a.builtin ? "Радар снимется из приложений, функции radar_* у SAM пропадут; его данные останутся, поставить снова можно здесь же."
+                         : "Удалятся код, данные и страница приложения.";
+  const confirmBox = el("div", { class: "confirm", hidden: "" }, el("p", {}, `${what} Чтобы удалить, введи ${a.slug}:`),
+                        input, el("div", { class: "acts" }, del, cancel));
+  const open = el("button", { class: "sam-btn danger", type: "button" }, "Удалить");
+  open.addEventListener("click", () => { open.hidden = true; confirmBox.hidden = false; input.focus(); });
+  cancel.addEventListener("click", () => {
+    confirmBox.hidden = true; open.hidden = false; input.value = ""; del.disabled = true; open.focus();
+  });
+  input.addEventListener("input", () => { del.disabled = input.value.trim() !== a.slug; });
+  del.addEventListener("click", async () => {
+    const r = await act(a, "delete", { confirm: input.value.trim() });
+    await done(r);
+    if (r.ok) SAMShell.closePanel();
+  });
+  return el("div", { class: "danger-zone" }, open, confirmBox);
+}
+
+render();                      // скрипт в конце body: разметка уже есть, плитки - в первом кадре
+data.apps.forEach(ping);
+setInterval(load, POLL_MS);
+</script>
+</body>
+</html>

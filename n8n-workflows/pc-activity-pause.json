@@ -1,0 +1,81 @@
+{
+  "name": "SAM: Пауза от ПК (4+ часа)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "pc-activity",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "d4e5f6a7-0004-0004-0004-000000000001",
+      "name": "Webhook от HA/Gateway",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1.1,
+      "position": [240, 300],
+      "webhookId": "pc-activity-pause"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {"caseSensitive": true},
+          "conditions": [
+            {
+              "leftValue": "={{ $json.pc_active_hours }}",
+              "rightValue": 4,
+              "operator": {"type": "number", "operation": "gte"}
+            }
+          ]
+        }
+      },
+      "id": "d4e5f6a7-0004-0004-0004-000000000002",
+      "name": "Проверка: > 4 часов",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://gateway:8000/v1/chat/completions",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\"messages\": [{\"role\": \"user\", \"content\": \"Ты за компьютером уже {{ $('Webhook от HA/Gateway').item.json.pc_active_hours }} часов. Убеди сделать паузу — настойчиво, с аргументами о здоровье, зрении и спине. Не давай отмахнуться.\"}]}",
+        "options": {}
+      },
+      "id": "d4e5f6a7-0004-0004-0004-000000000003",
+      "name": "SAM Gateway",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [680, 200]
+    },
+    {
+      "parameters": {
+        "respondWith": "allIncomingItems",
+        "options": {}
+      },
+      "id": "d4e5f6a7-0004-0004-0004-000000000004",
+      "name": "Ответ Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [900, 300]
+    }
+  ],
+  "connections": {
+    "Webhook от HA/Gateway": {
+      "main": [[{"node": "Проверка: > 4 часов", "type": "main", "index": 0}]]
+    },
+    "Проверка: > 4 часов": {
+      "main": [
+        [{"node": "SAM Gateway", "type": "main", "index": 0}],
+        [{"node": "Ответ Webhook", "type": "main", "index": 0}]
+      ]
+    },
+    "SAM Gateway": {
+      "main": [[{"node": "Ответ Webhook", "type": "main", "index": 0}]]
+    }
+  },
+  "active": false,
+  "settings": {"executionOrder": "v1"},
+  "id": "pc-activity-pause"
+}

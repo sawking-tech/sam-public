@@ -1,0 +1,23 @@
+fastapi==0.115.0
+uvicorn[standard]==0.32.0
+qwen-agent[mcp]>=0.0.10
+pymongo==4.9.2
+qdrant-client==1.12.0
+google-generativeai==0.8.3
+python-dotenv==1.0.1
+httpx==0.28.0
+websockets>=13.0             # WebSocket встроенного радара через шлюз /apps/radar/ (gateway/builtin_proxy.py)
+pydantic>=2.11,<3   # mcp 1.26 требует 2.11+; старая точная версия 2.10.0 не ставилась
+openai>=1.50.0           # для Gemini и LM Studio (OpenAI-compatible clients)
+sentence-transformers>=3.0.0  # локальные эмбеддинги, CPU, офлайн после первой загрузки
+google-genai>=0.8.0      # новый SDK для Gemini (google.genai)
+pyyaml>=6.0              # файлы workflow стенда (SAM-96)
+croniter>=6.0            # cron-выражения в расписании workflow (SAM-96)
+agent-client-protocol==0.9.0  # клиент ACP: внешний агент хода подпроцессом (ADR-022), та же версия, что у Hermes
+mcp==1.26.0                   # клиент MCP в Cortex: инструменты сессии ACP (cortex/acp/mcp_tools.py)
+rank-bm25==0.2.2              # поиск инструментов Cortex по описаниям (cortex/acp/tool_search.py)
+snowballstemmer==2.2.0        # основы слов для этого поиска: русский и английский
+anyascii==0.3.3               # транслит имени приложения в slug адреса (gateway/apps.py, SAM-205)
+filelock>=3.12               # замок надзора стенда в одном экземпляре (gateway/stand_watch_keeper.py, SAM-195)
+json-repair==0.47.7           # заметки разговора из битого или обрезанного JSON модели (gateway/tools/dialogue_notes.py, SAM-218)
+soundfile>=0.12           # qwen_agent импортирует его при загрузке, в зависимостях пакета не объявлен

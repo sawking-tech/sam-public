@@ -1,0 +1,31 @@
+{
+    "device": "pc",
+    "description": "Серверы MCP этой машины. Windows-управление - windows.example.json",
+    "mcp_port": 3000,
+    "servers": [
+        {
+            "name": "skills",
+            "command": "python",
+            "args": [
+                "mcp/skills_server.py"
+            ],
+            "description": "Скиллы стенда для моделей вне шлюза (ADR-022)"
+        },
+        {
+            "name": "fetch",
+            "command": "uvx",
+            "args": [
+                "mcp-server-fetch"
+            ],
+            "description": "URL в markdown"
+        },
+        {
+            "name": "time",
+            "command": "uvx",
+            "args": [
+                "mcp-server-time"
+            ],
+            "description": "Текущее время и часовые пояса"
+        }
+    ]
+}

@@ -1,0 +1,221 @@
+{
+  "version": "0.8.0-rc",
+  "releaseNotes": {
+    "0.8.0-rc": {
+      "headline": "",
+      "highlights": [
+        "SAM edits her apps and other repositories through a coding agent without the key; only her own core still needs it.",
+        "SAM hears from her supervisor when a part of her falls or the supervisor goes silent, and restarts the fallen part herself without asking.",
+        "Asked for a chart or a small page, SAM shows a working app on the first try and improves it afterwards."
+      ],
+      "ru": {
+        "headline": "",
+        "highlights": [
+          "SAM правит свои приложения и другие репозитории через агента кода без ключа; ключ нужен только для её ядра.",
+          "SAM узнаёт от надзора, что её часть упала или надзор замолчал, и сама, без вопроса, перезапускает упавшее.",
+          "На просьбу о графике или небольшой странице SAM с первого раза показывает работающее приложение и улучшает его потом."
+        ]
+      }
+    },
+    "0.7.0": {
+      "headline": "SAM builds live apps from the conversation and gets a sandbox that can reach the internet, install packages and hand files back to the PC.",
+      "highlights": [
+        "SAM makes a live app from the conversation and changes it on request; each app runs in its own container and opens only on this machine.",
+        "An apps panel lists SAM's apps and opens, stops, starts or deletes them.",
+        "SAM looks for a ready app or sample first, then builds, checks and shows it.",
+        "SAM follows personal instructions from a file in her data folder, like CLAUDE.md for coding agents, from the next turn without a restart.",
+        "Everything SAM says in an answer is spoken; notes for the monitor and scenarios go in tags and are never heard, and the model no longer stumbles over a speech tag when calling tools.",
+        "The monitor shows what was actually spoken of each answer and dims the notes that were not.",
+        "SAM checks her own code during a conversation in a warm isolated container in milliseconds, and Python variables live between runs.",
+        "Code in the sandbox can get internet on request, while the home network and this PC stay out of reach.",
+        "The sandbox installs packages from PyPI and npm after checking them for known vulnerabilities.",
+        "SAM can copy files from this PC into a sandbox job, clone a public git repository there, and export the finished files back to a folder on the PC.",
+        "A sandbox job can become a live app as it is.",
+        "SAM can tutor anyone in any subject, with extensions for software development and foreign languages, and keeps each learner's track in her memory.",
+        "SAM knows how to get something important across: remind, persuade, argue, and answer a refusal or a shout.",
+        "The gateway and the tool server accept requests only as JSON, refuse foreign hosts without the key and open live connections only from their own page; the databases listen on this machine only.",
+        "Stopping or restarting SAM no longer kills a foreign program that holds one of her ports."
+      ],
+      "ru": {
+        "headline": "SAM делает живые приложения прямо из разговора, а её песочница выходит в интернет, ставит пакеты и отдаёт файлы обратно на ПК.",
+        "highlights": [
+          "SAM делает живое приложение из разговора и правит его по просьбе; каждое приложение работает в своём контейнере и открывается только с этой машины.",
+          "Панель приложений показывает приложения SAM и открывает, останавливает, запускает или удаляет их.",
+          "SAM сначала ищет готовое приложение или пример, потом собирает, проверяет и показывает.",
+          "SAM следует личным инструкциям из файла в своей папке данных, как CLAUDE.md у агентов кода, со следующего хода без рестарта.",
+          "Всё, что SAM говорит в ответе, звучит; заметки для монитора и сценариев идут в тегах и не звучат, а тег речи больше не сбивает модель с вызова инструментов.",
+          "Монитор показывает, что из ответа прозвучало на самом деле, а непрозвучавшие заметки приглушает.",
+          "SAM проверяет свой код по ходу разговора в тёплом изолированном контейнере за миллисекунды, переменные Python живут между запусками.",
+          "Код в песочнице по запросу получает интернет, а домашняя сеть и этот ПК остаются недоступны.",
+          "Песочница ставит пакеты из PyPI и npm, проверив их по базе известных уязвимостей.",
+          "SAM копирует файлы с этого ПК в задачу песочницы, клонирует туда публичный git-репозиторий и выгружает готовые файлы обратно в папку на ПК.",
+          "Задача песочницы становится живым приложением как есть.",
+          "SAM занимается с любым человеком любым предметом, с расширениями для разработки и иностранных языков, и хранит трек каждого ученика в своей памяти.",
+          "SAM умеет донести важное: напомнить, переубедить, поспорить, ответить на отказ или крик.",
+          "Шлюз и сервер инструментов принимают запросы только как JSON, отказывают чужим адресам без ключа и открывают живое соединение только со своей страницы; базы слушают только эту машину.",
+          "Остановка и перезапуск SAM больше не убивают чужую программу, занявшую её порт."
+        ]
+      }
+    },
+    "0.6.0": {
+      "headline": "SAM's agents become a team with rights, step pools and their own channels, and thousands of background scenarios run without touching the voice.",
+      "highlights": [
+        "SAM answers a spoken phrase with a single streamed model call.",
+        "SAM hears with echo cancellation and can be interrupted by voice or a stop word.",
+        "SAM starts speaking with the first sentence while the rest of the answer is still being written.",
+        "After an interruption the conversation keeps only what was actually heard.",
+        "Commands on the PC are checked by the safety judge first, and SAM can no longer rewrite provider keys and addresses.",
+        "Without the shared key nobody else on the network can talk to SAM or run commands on the PC.",
+        "A crashed part of SAM gets back up by itself, and the health page shows which part is down.",
+        "SAM knows the skills from the skills folder and opens the right one when a task fits it.",
+        "SAM tells the people at home apart by voice.",
+        "SAM keeps quiet when people talk to each other or to the cats, and answers when called by name.",
+        "SAM speaks as she or he to match the chosen voice, and holds a position instead of agreeing with everything.",
+        "A fast model answers at once, and a slip is corrected a few seconds later in the same voice.",
+        "Late at night SAM speaks up by itself and sends people to bed, waiting for a pause in the conversation.",
+        "SAM hands a coding task to Claude Code or OpenCode inside the allowed repository folders and stops it when it runs too long.",
+        "When a background task asked for by voice finishes, SAM tells the outcome aloud in a pause.",
+        "SAM runs the code she writes in an isolated container without network or access to her data, and the monitor shows the page or picture it made.",
+        "A Claude Code session can lead SAM's conversation: it hears phrases as ticks and answers through the voice bus.",
+        "SAM tidies her conversation memory in pauses instead of while she is answering.",
+        "SAM remembers the last minutes of small talk word for word, while long messages go into a summary sooner.",
+        "A spoken phrase gets the next free model slot ahead of background tasks.",
+        "A worker result or a late-night nudge enters the conversation only once it has actually been heard.",
+        "Every half hour SAM goes over what she heard and saves what matters to her memory, whichever model leads her.",
+        "The radar draws the apartment floor by room, shows the network coverage per band and the probability layers of a phone and of a person.",
+        "The radar keeps its switches and who was home across restarts, and no figure walks through a wall or jumps further than a step.",
+        "The phone layer of the radar shows an arrow from the phone towards the router, where the signal gets warmer.",
+        "The coverage map can show a field of arrows: where the signal grows and how steeply, so it is visible where the level tells places apart.",
+        "The radar page rewinds: a slider over the recorded tracks shows the phone field as it was at that second, recomputed from the record.",
+        "A person lives in the radar flow as a subject of their own: they follow their phone within arm's reach and keep standing while it is silent.",
+        "The radar keeps a two-week history of where it placed each phone and person every second, with the probabilities, so SAM can ask where someone was on a given evening.",
+        "The radar sees the flat from above: a phone or a person may be on the sofa, the bed or a table, and the same floor zones carry the preferences for everyone.",
+        "SAM's agents work with the rights their creator gave them, ask their creator and report back, and write only to the agents they were introduced to, knowing who each one is.",
+        "An agent SAM starts can start one helper of its own, and that helper cannot start any.",
+        "Every agent works within a pool of steps it estimated itself, and asks for more with a reason when it runs short.",
+        "A model uses only the tools it was shown, and an agent with a shell can no longer create agents past its rights.",
+        "Thousands of background scenarios run at once without slowing SAM's voice: twelve thousand workflows were measured at about a thousand items a minute.",
+        "Background items reach the model in even parallel batches, and each one is confirmed or sent again.",
+        "Right after a restart the main model answers the first two turns, then the fast voice takes over.",
+        "SAM can tell what she is made of, what sets her apart from other assistants and where each part of her lives."
+      ],
+      "ru": {
+        "headline": "Агенты SAM стали командой с правами, пулами шагов и своими каналами, а тысячи фоновых сценариев идут, не задевая голос.",
+        "highlights": [
+          "SAM отвечает на фразу голосом одним потоковым вызовом модели.",
+          "SAM слышит с эхоподавлением, её можно перебить голосом или стоп-словом.",
+          "SAM начинает говорить с первого предложения, пока остальной ответ ещё пишется.",
+          "После перебивания в разговоре остаётся только то, что прозвучало.",
+          "Команды на ПК сначала проверяет судья безопасности, а ключи и адреса поставщиков SAM больше не переписывает.",
+          "Без общего ключа никто другой в сети не может обращаться к SAM и запускать команды на ПК.",
+          "Упавшая часть SAM поднимается сама, а страница здоровья показывает, какая часть лежит.",
+          "SAM знает скиллы из папки скиллов и открывает нужный, когда задача под него подходит.",
+          "SAM различает людей дома по голосу.",
+          "SAM молчит, когда люди говорят между собой или с котами, и отвечает на обращение по имени.",
+          "SAM говорит в роде выбранного голоса и держит позицию, а не соглашается со всем.",
+          "Быстрая модель отвечает сразу, а оговорку тем же голосом поправляют через несколько секунд.",
+          "Поздней ночью SAM первой заговаривает и отправляет человека спать, дождавшись паузы в разговоре.",
+          "SAM отдаёт задачу по коду Claude Code или OpenCode в разрешённых папках репозиториев и останавливает агента, если он работает слишком долго.",
+          "Когда фоновая задача, поставленная голосом, закончена, SAM пересказывает итог вслух в паузе.",
+          "SAM запускает написанный ею код в изолированном контейнере без сети и доступа к её данным, а монитор показывает получившуюся страницу или картинку.",
+          "Сессия Claude Code может вести разговор SAM: слышит фразы тиками и отвечает через голосовую шину.",
+          "SAM приводит память разговора в порядок в паузах, а не пока отвечает.",
+          "SAM дольше помнит дословно короткие реплики разговора, а длинные сообщения раньше уходят в сводку.",
+          "Фраза голосом получает ближайшее свободное место у модели раньше фоновых задач.",
+          "Итог фоновой задачи и ночное напоминание попадают в разговор, только когда прозвучали.",
+          "Раз в полчаса SAM просматривает услышанное и сохраняет важное в память, какая бы модель её ни вела.",
+          "Радар рисует пол квартиры по комнатам, показывает покрытие сети по диапазонам и слои вероятности телефона и человека.",
+          "Радар хранит переключатели и кто был дома между перезапусками, и никто не проходит сквозь стену и не прыгает дальше шага.",
+          "Слой телефона на радаре показывает стрелку от телефона к роутеру, туда, где сигнал теплее.",
+          "Карта покрытия умеет показывать поле стрелок: куда и как круто растёт сигнал, и видно, где уровень различает места.",
+          "Страница радара перематывает время: ползунок по записи треков показывает поле телефона на ту секунду, пересчитанное из записи.",
+          "Человек живёт в потоке радара своим субъектом: держится рядом со своим телефоном и стоит на месте, пока тот молчит.",
+          "Радар две недели хранит, куда он ставил каждый телефон и человека каждую секунду, с вероятностями, и SAM может спросить, где кто был в тот вечер.",
+          "Радар видит квартиру сверху: телефон и человек могут быть на диване, кровати или столе, и те же зоны пола несут предпочтения для всех.",
+          "Агенты SAM работают с правами, которые дал создатель, спрашивают его и отчитываются ему и пишут только тем агентам, с которыми их познакомили, зная, кто чем занят.",
+          "Агент, которого запустила SAM, может запустить одного помощника, а тот - ни одного.",
+          "Каждый агент работает в пуле шагов, который сам оценил, и просит ещё с причиной, когда не хватает.",
+          "Модель пользуется только показанными ей инструментами, а агент с оболочкой больше не создаст агента мимо своих прав.",
+          "Тысячи фоновых сценариев идут разом и не замедляют голос SAM: замер - двенадцать тысяч workflow, около тысячи поводов в минуту.",
+          "Фоновые поводы уходят модели ровными параллельными пачками, и каждый подтверждается или уходит повтором.",
+          "Сразу после перезапуска первые два хода отвечает основная модель, дальше включается быстрый голос.",
+          "SAM может рассказать, из чего она сделана, чем отличается от других ассистентов и где лежит каждая её часть."
+        ]
+      }
+    },
+    "0.4.0": {
+      "headline": "SAM is back in shape for v1: documented decisions, token accounting and a gateway that does not hang.",
+      "highlights": [
+        "Every architectural decision is written down as an ADR, the road to v1 as a plan and a backlog.",
+        "Every model call records its tokens by session and role.",
+        "A silent model gives way to the next one in the chain, a broken answer starts over cleanly.",
+        "Memory search no longer freezes the conversation.",
+        "The local model is chosen by its id."
+      ],
+      "ru": {
+        "headline": "SAM готова к пути на v1: решения записаны, токены посчитаны, gateway не зависает.",
+        "highlights": [
+          "Каждое архитектурное решение записано ADR, путь к v1 - планом и бэклогом.",
+          "Каждый вызов модели записывает свои токены по сессии и роли.",
+          "Молчащая модель уступает следующей в цепочке, оборванный ответ начинается заново чисто.",
+          "Поиск по памяти больше не замораживает разговор.",
+          "Локальная модель выбирается по id."
+        ]
+      }
+    },
+    "0.3.0": {
+      "headline": "SAM gets a character and agents that remember their work.",
+      "highlights": [
+        "A warm, direct friend of the house instead of a corporate bot.",
+        "Background agents stay alive, keep their context and can be woken by name.",
+        "Long-term memory searched by facets, with an archive behind every compression.",
+        "A live monitor of everything SAM hears, thinks and does.",
+        "Say her name to interrupt her."
+      ],
+      "ru": {
+        "headline": "У SAM характер и агенты, которые помнят свою работу.",
+        "highlights": [
+          "Тёплый прямой друг дома вместо корпоративного бота.",
+          "Фоновые агенты живут, помнят контекст и просыпаются по имени.",
+          "Долгая память с поиском по фасетам и архивом за каждым сжатием.",
+          "Живой монитор всего, что SAM слышит, думает и делает.",
+          "Её можно перебить, назвав по имени."
+        ]
+      }
+    },
+    "0.2.0": {
+      "headline": "SAM listens: wake word, local Russian speech recognition, voice answers.",
+      "highlights": [
+        "Wake her with her name.",
+        "Speech is recognised on the PC by a Russian-tuned Whisper.",
+        "If a model provider fails, the next one answers."
+      ],
+      "ru": {
+        "headline": "SAM слышит: имя-пробуждение, локальное распознавание русской речи, ответ голосом.",
+        "highlights": [
+          "Её будит имя.",
+          "Речь распознаётся на ПК дообученным на русском Whisper.",
+          "Отказал поставщик модели - отвечает следующий."
+        ]
+      }
+    },
+    "0.1.0": {
+      "headline": "A home agent: memory, devices and background tasks.",
+      "highlights": [
+        "Remembers facts about the family and finds them by meaning.",
+        "Acts on the home PCs through their MCP servers.",
+        "Hands long work to background agents and reports back.",
+        "Dangerous commands are stopped before they run."
+      ],
+      "ru": {
+        "headline": "Домашний агент: память, устройства, фоновые задачи.",
+        "highlights": [
+          "Помнит факты о семье и находит их по смыслу.",
+          "Действует на домашних ПК через их MCP-серверы.",
+          "Отдаёт долгую работу фоновым агентам и сообщает итог.",
+          "Опасные команды останавливаются до запуска."
+        ]
+      }
+    }
+  }
+}
