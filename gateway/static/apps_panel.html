@@ -86,7 +86,7 @@
 <body>
 <main class="wrap home sam-grid">
   <h1 class="sam-h1">Приложения</h1>
-  <p class="lead">Страницы, которые SAM сделала по просьбе, и её встроенные приложения: эта страница, монитор и радар.</p>
+  <p class="lead">Страницы, которые SAM сделала по просьбе, и её встроенные приложения.</p>
   <h2 class="row-title" id="pinned-title">Закреплённые</h2>
   <ul class="row" id="pinned" aria-labelledby="pinned-title"></ul>
   <h2 class="row-title" id="rest-title" hidden>Остальные</h2>
@@ -326,7 +326,7 @@ function deleteBlock(a, done) {
                               "aria-label": `Введи ${a.slug}` });
   const del = el("button", { class: "sam-btn danger", type: "button", disabled: "" }, "Удалить навсегда");
   const cancel = el("button", { class: "sam-btn", type: "button" }, "Отмена");
-  const what = a.builtin ? "Радар снимется из приложений, функции radar_* у SAM пропадут; его данные останутся, поставить снова можно здесь же."
+  const what = a.builtin ? `${a.name} снимется из приложений, его функции у SAM пропадут; его данные останутся, поставить снова можно здесь же.`
                          : "Удалятся код, данные и страница приложения.";
   const confirmBox = el("div", { class: "confirm", hidden: "" }, el("p", {}, `${what} Чтобы удалить, введи ${a.slug}:`),
                         input, el("div", { class: "acts" }, del, cancel));

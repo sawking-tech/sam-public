@@ -10,7 +10,8 @@
 Разбор шапки (parse_skill) отделён от чтения диска (load_index). Папка - SAM_SKILLS_DIR, по умолчанию проектная
 `.claude/skills` - скиллы стенда, их получает любая основная модель; `~/.claude/skills` - личные скиллы Claude Code,
 шлюз их не раздаёт (SAM-99), кроме перечисленных в SAM_SKILLS_SHARED: по умолчанию глобальные plan-and-iterate и
-code-review. Белый список имён - SAM_SKILLS_ALLOW через запятую (пусто - все).
+code-review. Белый список имён - SAM_SKILLS_ALLOW через запятую (пусто - все). Скилл радара при выключенном радаре
+(`gateway/radar_switch.py`) модели не показывается.
 """
 from __future__ import annotations
 
@@ -19,6 +20,8 @@ from dataclasses import dataclass
 from pathlib import Path
 
 import yaml
+
+from . import radar_switch
 
 PROJECT_SKILLS_DIR = Path(__file__).resolve().parents[1] / ".claude" / "skills"
 # Пустая переменная в .env - умолчание, а не текущая папка
@@ -56,7 +59,9 @@ def parse_skill(text: str, folder: str) -> Skill:
     if meta.get("when_to_use"):
         description = f"{description} {str(meta['when_to_use']).strip()}"
     listed = str(meta.get("disable-model-invocation", "false")).strip().lower() not in TRUE_WORDS
-    return Skill(str(meta.get("name") or folder), description[:DESCRIPTION_LIMIT], body, listed)
+    name = str(meta.get("name") or folder)
+    listed = listed and (name != radar_switch.COMPONENT or radar_switch.enabled())
+    return Skill(name, description[:DESCRIPTION_LIMIT], body, listed)
 
 
 def _split(text: str, folder: str) -> tuple[dict, str]:

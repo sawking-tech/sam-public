@@ -4,7 +4,7 @@ BASE — для первого чанка цепочки (полное опис�
 DIFF — для последующих с prior_context (только новое или SKIP-маркер).
 is_trivial_summary — детектор SKIP-маркера от LLM.
 
-TODO (AVOX-21): имена партнёров → tenant config.
+TODO (AVOX-21): имена людей → tenant config.
 """
 
 SUMMARIZE_BASE_PROMPT = """Ты — SAM, домашний ИИ-ассистент. Это ПЕРВОЕ резюме

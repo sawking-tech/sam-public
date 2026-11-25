@@ -35,6 +35,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any, Awaitable, Callable, Protocol
 
+from . import radar_switch
 from .env import FALSE_WORDS, env_bool, env_float, env_int
 from .proc_tree import NEW_GROUP, kill_tree
 from .workflow_spec import (ASK, BUILTIN_KEYS, COUNT_KEY, EVENT_PREFIX, MAIN_MODEL, PLACEHOLDER, REASON_KEY, RESULT_CONDITION, SCHEDULER_EVENT, Gate, Schedule,
@@ -97,6 +98,11 @@ def is_off(wf: Workflow, off: set[str]) -> bool:
     """Выключен ли workflow: по полному имени, по одной из меток (t:x, tag:x) или по категории (c:x, category:x)."""
     return (wf.name in off or bool(set(wf.tags) & _off_values(off, TAG_OFF))
             or wf.category in _off_values(off, CATEGORY_OFF) - {""})
+
+
+def hidden(wf: Workflow, environ) -> bool:
+    """Workflow категории радара при выключенном радаре не регистрируется: его как будто нет."""
+    return wf.category == radar_switch.COMPONENT and not radar_switch.enabled(environ)
 
 
 def labels(wf: Workflow) -> dict:

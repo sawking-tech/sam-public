@@ -4,8 +4,8 @@
 Имена - как у restart_component. Компонент жив, когда его процесс запущен ровно один раз (два шлюза на одном порту -
 тоже поломка, 9 окт старый шлюз пережил перезапуск и держал порт) и его health check отвечает: /health шлюза, MCP,
 эмбеддера и радара; у слуха и моста HTTP нет - их файл живости в шине (voice/layer/health.py); у синтеза - только
-процесс. Cortex живёт в шлюзе - строка cortex в components его /health. Выключить компонент на этой машине (радар не
-запущен) - SAM_STAND_WATCH_OFF через запятую.
+процесс. Cortex живёт в шлюзе - строка cortex в components его /health. Выключить компонент на этой машине -
+SAM_STAND_WATCH_OFF через запятую; выключенный радар (gateway/radar_switch.py) не проверяется и без этого.
 
 Решение (worst, process_state, health_state, cortex_state, combine) отделено от сети, процессов и файлов.
 """
@@ -20,7 +20,7 @@ import urllib.request
 from voice.layer import health as voice_health
 from voice.layer.config import BUS_DIR
 
-from . import radar_client
+from . import radar_client, radar_switch
 from .stand_report import GATEWAY, UP
 
 DOWN = "down"
@@ -33,7 +33,7 @@ HEALTH = {
     GATEWAY: GATEWAY_URL + HEALTH_PATH,
     "mcp": f"http://localhost:{os.getenv('MCP_PORT', '3000')}{HEALTH_PATH}",
     "embedder": (os.getenv("SAM_EMBEDDER_URL") or "http://127.0.0.1:10204").rstrip("/") + HEALTH_PATH,
-    "radar": (os.getenv(radar_client.URL_ENV) or radar_client.DEFAULT_URL).rstrip("/") + HEALTH_PATH,
+    radar_switch.COMPONENT: (os.getenv(radar_client.URL_ENV) or radar_client.DEFAULT_URL).rstrip("/") + HEALTH_PATH,
 }
 # Процесс -> подстрока командной строки; каждый должен быть запущен ровно один раз
 PROCESSES = {
@@ -107,10 +107,16 @@ def combine(name: str, lines: list[str] | None, bodies: dict[str, dict | None], 
     return worst(proc, http, file)
 
 
+def switched_off() -> set[str]:
+    """Компоненты, которых на этой машине нет: SAM_STAND_WATCH_OFF и выключенный радар."""
+    return set(OFF) if radar_switch.enabled() else {*OFF, radar_switch.COMPONENT}
+
+
 def component_states(names: list[str] | None = None, now: float | None = None) -> tuple[dict[str, str], dict]:
-    """Состояния компонентов (по умолчанию - всех, кроме OFF) и ответы /health по имени."""
+    """Состояния компонентов (по умолчанию - всех, кроме выключенных) и ответы /health по имени."""
     now = time.time() if now is None else now
-    names = [n for n in (names or SUPERVISED) if n in SUPERVISED and n not in OFF]
+    off = switched_off()
+    names = [n for n in (names or SUPERVISED) if n in SUPERVISED and n not in off]
     lines = python_cmdlines() if any(n in PROCESSES for n in names) else None
     bodies = {n: fetch_health(HEALTH[n]) for n in names if n in HEALTH}
     return {n: combine(n, lines, bodies, now) for n in names}, bodies

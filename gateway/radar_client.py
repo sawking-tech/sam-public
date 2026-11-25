@@ -6,7 +6,8 @@
 
 Свидетельство уходит в фоне, сбой не мешает ходу чата: после сбоя клиент молчит `RETRY_AFTER_S` секунд, чтобы
 выключенный радар не тормозил каждый ход. Чтение отдаёт JSON ответа или None, если радар молчит или отказал.
-Пустой `SAM_RADAR_URL` выключает и то и другое.
+Пустой `SAM_RADAR_URL` выключает и то и другое; выключенный радар (`gateway/radar_switch.py`) - тоже: `build` отдаёт клиент
+без адреса.
 """
 from __future__ import annotations
 
@@ -18,7 +19,7 @@ import urllib.parse
 import urllib.request
 from typing import Callable
 
-from . import access
+from . import access, radar_switch
 
 URL_ENV = "SAM_RADAR_URL"
 DEFAULT_URL = "http://127.0.0.1:8010"
@@ -89,4 +90,4 @@ class RadarClient:
 
 
 def build(env=os.environ) -> RadarClient:
-    return RadarClient(env.get(URL_ENV, DEFAULT_URL))
+    return RadarClient(env.get(URL_ENV, DEFAULT_URL) if radar_switch.enabled(env) else "")

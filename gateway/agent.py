@@ -64,6 +64,7 @@ from . import phrase_class as _phrase_class
 from . import agent_budget as _agent_budget
 from .fast_backoff import FastBackoff as _FastBackoff
 from . import fast_voice_gate as _fast_voice_gate
+from . import restart as _restart
 
 # Заметки о разговоре (SAM-131): старше часа - прошлая тема, быстрой они только мешали бы; не замерено
 DIALOGUE_NOTES_MAX_AGE_S = env_float("SAM_DIALOGUE_NOTES_MAX_AGE_S", 3600.0)
@@ -1442,7 +1443,7 @@ class AppMakeTool(BaseTool):
                         "/static/shell/app-client.js); {off: true} - своя полноэкранная страница; {bar: false, "
                         "panelw: 360} - свои опции"},
         {"name": "tools", "type": "array",
-         "description": "Ручки приложения для тебя, как инструменты радара: [{name, description, method: GET|POST, "
+         "description": "Ручки приложения для тебя: [{name, description, method: GET|POST, "
                         "path: путь API приложения, params: {имя: что это}}]; вызов - app_call"},
         {"name": "icon", "type": "string",
          "description": "Лого приложения на его плитке: разметка SVG строкой (<svg viewBox=...>...</svg>), до "
@@ -1478,7 +1479,7 @@ class AppUpdateTool(BaseTool):
                         "/static/shell/app-client.js); {off: true} - своя полноэкранная страница; {bar: false, "
                         "panelw: 360} - свои опции"},
         {"name": "tools", "type": "array",
-         "description": "Ручки приложения для тебя, как инструменты радара: [{name, description, method: GET|POST, "
+         "description": "Ручки приложения для тебя: [{name, description, method: GET|POST, "
                         "path: путь API приложения, params: {имя: что это}}]; вызов - app_call"},
         {"name": "icon", "type": "string",
          "description": "Лого приложения на его плитке: разметка SVG строкой (<svg viewBox=...>...</svg>), до "
@@ -1500,9 +1501,9 @@ class AppListTool(BaseTool):
 @register_tool("app_call")
 class AppCallTool(BaseTool):
     description = ("Вызвать ручку приложения (список ручек - app_list): прочитать или записать данные приложения без "
-                   "браузера; радар - app_call(radar, where, {person}).")
+                   "браузера.")
     parameters = [
-        {"name": "app", "type": "string", "description": "slug или id приложения, встроенное - radar", "required": True},
+        {"name": "app", "type": "string", "description": "slug или id приложения", "required": True},
         {"name": "tool", "type": "string", "description": "имя ручки из app_list", "required": True},
         {"name": "args", "type": "object", "description": "аргументы ручки: {имя: значение}, только объявленные"},
     ]
@@ -2086,18 +2087,23 @@ class PlanTool(BaseTool):
         return _impl_plan(p)
 
 
+# Компоненты в описании инструмента: выключенного радара модель не видит (gateway/radar_switch.py)
+_RESTART_NAMES = _restart.names()
+_RADAR_COMPONENT = f"{_restart.RADAR}, " if _restart.RADAR in _RESTART_NAMES else ""
+
+
 @register_tool("restart_component")
 class RestartComponentTool(BaseTool):
     description = (
         "Перезапустить компонент стенда SAM, без вопроса: упавший, зависший или после правки его кода. name: gateway "
         "(сам шлюз - после ответа, вкладка поднимет за секунды), mcp, voice, bridge, tts (синтез Silero), embedder, "
-        "client, cosy, radar, cortex (процессы агентов Cortex после конца их ходов, не дольше 2 мин - дальше ход рвётся; "
+        f"client, cosy, {_RADAR_COMPONENT}cortex (процессы агентов Cortex после конца их ходов, не дольше 2 мин - дальше ход рвётся; "
         "следующий ход поднимет). Сам проверяет health компонента: уже поднялся - не перезапускает. force=true - без "
         "проверки: после правки кода компонента, когда он завис, а health ok (Cortex с живым процессом, шлюз), или по "
         "прямой просьбе. После перезапуска проверь /health компонента."
     )
     parameters = [
-        {"name": "name", "type": "string", "description": "gateway | mcp | voice | bridge | tts | embedder | client | cosy | radar | cortex", "required": True},
+        {"name": "name", "type": "string", "description": " | ".join(_RESTART_NAMES), "required": True},
         {"name": "force", "type": "boolean", "description": "true - без проверки health: после правки кода, при зависании с ok или по прямой просьбе"},
     ]
     def call(self, params, **kwargs):
@@ -3204,7 +3210,8 @@ def _load_workflows(warn=print) -> tuple[Path, set[str], list]:
     from . import workflow_spec as _spec, workflows as _wf
     folder = Path(os.getenv(_wf.DIR_ENV, "").strip() or _wf.DEFAULT_DIR)
     off = _wf.disabled(os.environ, warn=warn)
-    return folder, off, [w for w in _spec.load_dir(folder, warn=warn) if not _wf.is_off(w, off)]
+    return folder, off, [w for w in _spec.load_dir(folder, warn=warn)
+                         if not _wf.is_off(w, off) and not _wf.hidden(w, os.environ)]
 
 
 @functools.lru_cache(maxsize=1)
@@ -3391,7 +3398,6 @@ async def _close_cortex(only_dead: bool = False) -> int:
     return closed
 
 
-from . import restart as _restart  # noqa: E402
 # Перезапуск компонентов стенда из хода (SAM-195): шлюз ждёт конца ходов по воротам простоя
 async def _component_state(name: str) -> str | None:
     """Health check перед перезапуском: Cortex - по процессам этого шлюза, остальное - как у надзора."""
