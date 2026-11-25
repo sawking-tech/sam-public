@@ -9,7 +9,8 @@ APP = "aaaaaaaaaaaa"
 
 
 def shipped_builtins(root, monkeypatch) -> None:
-    """Манифесты встроенных с адресами ENV; старт шлюза в фоне пишет их же из окружения - окружение то же, гонки нет."""
+    """Манифесты встроенных с адресами ENV: старт шлюза пишет их из окружения до выхода из старта, а ENV
+    задаётся позже - здешняя запись перекрывает его адреса и остаётся последней (окружение стенда в тестах - 8099)."""
     for key, value in ENV.items():
         monkeypatch.setenv(key, value)
     builtin_apps.ensure(root, builtin_apps.defaults(ENV))
@@ -45,6 +46,7 @@ def test_names_from_the_app_cannot_break_out_of_the_page():
     assert "x&lt;/script&gt;&lt;img src=x onerror=alert(1)&gt;__INFO__" in page        # подставлено один раз
 
 
+@pytest.mark.usefixtures("radar_on")
 def test_gateway_serves_the_view_by_slug_and_moves_id_and_builtins(tmp_path, app_client, monkeypatch):  # noqa: F811
     client, _ = app_client                                   # APPS_DIR фикстуры - tmp_path
     (tmp_path / APP).mkdir()
@@ -61,6 +63,7 @@ def test_gateway_serves_the_view_by_slug_and_moves_id_and_builtins(tmp_path, app
     assert client.get("/apps/nothing").status_code == 404
 
 
+@pytest.mark.usefixtures("radar_on")
 def test_gateway_forwards_the_radar_to_its_process_without_the_app_sandbox(tmp_path, app_client, monkeypatch):  # noqa: F811
     import httpx
 
@@ -88,6 +91,7 @@ def test_gateway_forwards_the_radar_to_its_process_without_the_app_sandbox(tmp_p
     assert big.status_code == 413
 
 
+@pytest.mark.usefixtures("radar_on")
 def test_gateway_presents_its_key_and_host_to_the_radar_and_keeps_the_page_key(tmp_path, app_client, monkeypatch):  # noqa: F811
     import httpx
 

@@ -12,6 +12,9 @@ os.environ.setdefault("SAM_LOCAL_HOSTS", "127.0.0.1,::1,localhost,testclient")
 os.environ["SAM_API_KEY"] = ""
 os.environ["SAM_ALLOWED_HOSTS"] = "testserver"   # Host запросов TestClient и фейков (gateway/access.py host_reason)
 os.environ["SAM_WORKFLOWS"] = "0"
+# Радар выключен, как в поставке, и не зависит от .env машины; тесты радара включают флаг фикстурой radar_on
+os.environ["SAM_RADAR"] = "0"
+os.environ["SAM_RADAR_FIGURE_JOKE"] = "0"
 os.environ["SAM_STAND_WATCH_KEEP_S"] = "0"   # шлюз и модули в тестах надзор стенда не поднимают (SAM-195)
 os.environ["SAM_CORTEX_WARM"] = "0"   # шлюз в тестах не поднимает процесс Cortex при старте (SAM-195)
 os.environ["SAM_SESSION_SWEEP"] = "0"   # старт шлюза в тестах не убирает сессии (gateway/session_purge.py)
@@ -30,6 +33,11 @@ os.environ["SAM_PRIVILEGE_FILE"] = os.path.join(tempfile.mkdtemp(prefix="sam-tes
 # «Третий час, ложись» на живом :10202 - строки в логе синтеза): закрытый порт, клиент получает отказ сразу
 os.environ["WYOMING_SILERO"] = "127.0.0.1:1"
 os.environ["WYOMING_COSY"] = "127.0.0.1:1"   # планировщик workflow стенда (SAM-96) не стартует в тестах TestClient
+# `import sounddevice` поднимает PortAudio и падает без звукового сервера (CI-раннер: PulseAudio не запущен).
+# Модули голосового слоя импортируют его на уровне модуля, поэтому заглушка ставится до первого их импорта.
+# Тесты устройств подменяют карты сами; настоящие карты не нужны ни одному тесту.
+from tests.fakes_sounddevice import install as _install_fake_sounddevice  # noqa: E402
+_install_fake_sounddevice()
 # Личный слой (gateway/prompts/personal.py): data/SAM.md стенда тесты не читают, имена - по умолчанию из шапки SAM.md
 os.environ["SAM_PERSONAL_FILE"] = os.path.join(tempfile.mkdtemp(prefix="sam-test-"), "SAM.md")
 # Душа SAM (gateway/prompts/soul.py): тесты собирают характер из заготовки, а не из Mongo стенда; копия души стенда
@@ -42,6 +50,13 @@ _soul.configure(_soul.read_seed)
 # Свои шины тестов (EventBus()) слушателя получают как обычно
 from gateway.event_bus import event_bus as _shared_bus  # noqa: E402
 _shared_bus.set_history_listener = lambda listener: None
+
+
+@pytest.fixture
+def radar_on(monkeypatch):
+    """Радар включён флагом: тест проверяет то, что есть только при включённом радаре."""
+    from gateway import radar_switch
+    monkeypatch.setenv(radar_switch.ENV, "1")
 
 
 @pytest.fixture
