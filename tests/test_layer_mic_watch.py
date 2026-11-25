@@ -17,8 +17,8 @@ from voice.layer.mic_watch import LIVE, WAITING, MicWatch, find_input
 
 STALL, POLL = 2.0, 2.0
 BLOCK_SECS = 0.04                      # колбэк входа ядра: 40 мс
-C922_FULL = "Микрофон (C922 Pro Stream Webcam)"
-C922_MME = C922_FULL[:31]              # winmm и MME режут имя до 31 знака
+WEBCAM_FULL = "Микрофон (USB Pro Stream Webcam)"
+WEBCAM_MME = WEBCAM_FULL[:31]              # winmm и MME режут имя до 31 знака
 OTHER = "Микрофон гарнитуры (Soundcore 3)"
 SPEAKERS = "Динамики (Realtek High Definition Audio)"
 NO_DEVICE = "Error querying device -1"  # текст PortAudioError, с которым 9 окт падал голосовой слой
@@ -111,12 +111,12 @@ def test_mic_retry_polling() -> None:
 # ─── find_input: какое устройство ждать ───────────────────────────────────────
 
 @pytest.mark.parametrize("names, wanted, found", [
-    ([], C922_FULL, None),                       # камеры нет в системе
-    ([OTHER], C922_FULL, None),                  # другой вход - не тот
-    ([OTHER, C922_MME], C922_FULL, C922_MME),    # вернулась, имя обрезано winmm
+    ([], WEBCAM_FULL, None),                       # камеры нет в системе
+    ([OTHER], WEBCAM_FULL, None),                  # другой вход - не тот
+    ([OTHER, WEBCAM_MME], WEBCAM_FULL, WEBCAM_MME),    # вернулась, имя обрезано winmm
     ([], None, None),
     ([OTHER], None, OTHER),                      # старт без микрофона: годится любой вход
-    (None, C922_FULL, C922_FULL),                # список неизвестен: всё равно пробуем
+    (None, WEBCAM_FULL, WEBCAM_FULL),                # список неизвестен: всё равно пробуем
     (None, None, ""),
 ], ids=["absent", "other-device", "same-device-cut-name", "any-none", "any-first", "unknown-list", "unknown-any"])
 def test_find_input_waits_for_the_same_device(names, wanted, found) -> None:
@@ -155,7 +155,7 @@ class _FakeSD:
         devs = [{"index": 0, "name": SPEAKERS, "hostapi": 0,
                  "max_input_channels": 0, "max_output_channels": 2}]
         if self.mic:
-            devs.append({"index": 1, "name": C922_FULL, "hostapi": 0,
+            devs.append({"index": 1, "name": WEBCAM_FULL, "hostapi": 0,
                          "max_input_channels": 1, "max_output_channels": 0})
         return devs
 
@@ -188,7 +188,7 @@ class _FakeSD:
 def no_mic(monkeypatch) -> _FakeSD:
     fake = _FakeSD()
     monkeypatch.setattr(audio_core, "sd", fake)
-    monkeypatch.setattr(audio_core, "input_names", lambda: [C922_MME] if fake.mic else [])
+    monkeypatch.setattr(audio_core, "input_names", lambda: [WEBCAM_MME] if fake.mic else [])
     return fake
 
 
@@ -218,7 +218,7 @@ def test_audio_core_survives_mic_loss_and_return(no_mic, tmp_path, capsys) -> No
     no_mic.mic = True                            # камеру воткнули обратно
     clock.tick(POLL)
     core._mic_step(tmp_path)
-    assert core._in is not None and core._in.active and core.input_name == C922_FULL
+    assert core._in is not None and core._in.active and core.input_name == WEBCAM_FULL
     clock.tick(BLOCK_SECS)
     _block(core)
     core._mic_step(tmp_path)
@@ -230,7 +230,7 @@ def test_audio_core_survives_mic_loss_and_return(no_mic, tmp_path, capsys) -> No
     core._mic_step(tmp_path)
     events = _mic_events(tmp_path)
     assert [e["status"] for e in events] == ["back", "lost"]
-    assert events[1]["device"] == C922_FULL
+    assert events[1]["device"] == WEBCAM_FULL
     core.close()
 
 
