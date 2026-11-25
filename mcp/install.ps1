@@ -1,6 +1,6 @@
 # SAM MCP Client Setup — Windows
 # Запуск (от администратора): .\mcp\install.ps1
-# Параметры: .\mcp\install.ps1 -Server http://$SAM_SERVER_IP:8000 -DeviceName workpc
+# Параметры: .\mcp\install.ps1 -Server http://$SAM_SERVER_IP:8000 -DeviceName mypc
 
 param(
     [string]$Server    = $env:SAM_SERVER ?? "http://localhost:8000",

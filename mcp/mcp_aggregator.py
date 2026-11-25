@@ -68,7 +68,7 @@ log = logging.getLogger(__name__)
 sys.path.insert(1, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
 from gateway.access import AccessMiddleware, startup_warning  # noqa: E402
 from gateway.env import env_float, env_int  # noqa: E402
-from gateway import stand_watch_keeper  # noqa: E402
+from gateway import radar_switch, stand_watch_keeper  # noqa: E402
 
 # Срок выполнения одного вызова инструмента (30 с) и отдельный срок ожидания очереди
 # к серверу: сервер выполняет один вызов за раз, и вызов за долгим не должен отвечать
@@ -92,6 +92,11 @@ REMOVED_MARKER = "removed"
 
 def removed_app(name: str, apps_dir: str | None = None) -> bool:
     return bool(name) and os.path.isfile(os.path.join(apps_dir or APPS_DIR, name, REMOVED_MARKER))
+
+
+def skipped_server(name: str, apps_dir: str | None = None) -> bool:
+    """Сервер не поднимается: его приложение снято или это переходник выключенного радара (gateway/radar_switch.py)."""
+    return removed_app(name, apps_dir) or (name == radar_switch.COMPONENT and not radar_switch.enabled())
 
 
 def _error(message: str) -> ToolOutcome:
@@ -143,7 +148,7 @@ class MCPAggregator:
 
     async def start(self, config_path: str):
         config = json.loads(open(config_path, encoding="utf-8").read())
-        servers_cfg = [cfg for cfg in config.get("servers", []) if not removed_app(cfg.get("name", ""))]
+        servers_cfg = [cfg for cfg in config.get("servers", []) if not skipped_server(cfg.get("name", ""))]
 
         # Запускаем серверы параллельно
         await asyncio.gather(*[

@@ -146,8 +146,8 @@ def sandbox_exec(code: str, lang: str = "", timeout: int = 0) -> str:
 @mcp.tool()
 def restart_component(name: str, force: bool = False) -> str:
     """Перезапустить компонент стенда SAM, без вопроса: упавший, зависший или после правки его кода. name: gateway
-    (после ответа, вкладка поднимет), mcp, voice, bridge, tts, embedder, client, cosy, radar, cortex. Сам проверяет
-    health компонента: уже поднялся - не перезапускает; force - без проверки, после правки кода или по прямой просьбе.
+    (после ответа, вкладка поднимет), mcp, voice, bridge, tts, embedder, client, cosy, cortex; полный список этой машины
+    приходит в отказе на чужое имя. Сам проверяет health компонента: уже поднялся - не перезапускает; force - без проверки, после правки кода или по прямой просьбе.
     После - проверь /health компонента."""
     res = _call("POST", "/sam/stand/restart", {"name": name, "force": force})
     return res if isinstance(res, str) else str(res.get("result", ""))

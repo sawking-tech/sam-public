@@ -9,7 +9,7 @@ SAM Client Agent — запускается на каждом ПК при ста
 5. При завершении — POST /sam/client/offline
 
 Запуск: python mcp/client_agent.py
-        python mcp/client_agent.py --server http://<SAM_SERVER_IP>:8000 --name workpc
+        python mcp/client_agent.py --server http://<SAM_SERVER_IP>:8000 --name mypc
 """
 
 import os
@@ -106,7 +106,7 @@ def get_ram_gb() -> float:
 def get_presence_score() -> float:
     """
     Простой presence score на основе активности мыши/клавиатуры.
-    Полная версия — в radar/presence.py.
+    Шлюз хранит его в каталоге устройств; с радаром присутствия не связан.
     """
     score = 0.0
     try:

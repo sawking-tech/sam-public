@@ -12,7 +12,8 @@ SAM в шлюзе зовёт радар как приложение: `app_call(r
 
 Ответы и описания собирает сервис радара (`radar/presence_sam_api.py`, маршруты /sam/tools/*); переходник только
 пересылает аргументы и возвращает текст. Адрес - SAM_RADAR_URL, ключ - SAM_API_KEY, как у прокси шлюза.
-Радар не отвечает - одна строка, что делать.
+Радар не отвечает - одна строка, что делать. Выключенный радар (gateway/radar_switch.py) агрегатор не поднимает, а
+запущенный руками сервер выходит одной строкой, инструментов не объявляя.
 """
 
 import json
@@ -25,7 +26,7 @@ import urllib.request
 from mcp.server.fastmcp import FastMCP
 
 sys.path.insert(1, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))   # как mcp_aggregator.py: gateway из корня
-from gateway import access  # noqa: E402
+from gateway import access, radar_switch  # noqa: E402
 from radar import presence_sam_api as api  # noqa: E402
 from gateway.app_tools import answer  # noqa: E402
 
@@ -91,4 +92,6 @@ def radar_furniture(room: str = "") -> str:
 
 
 if __name__ == "__main__":
+    if not radar_switch.enabled():
+        sys.exit(radar_switch.OFF_LINE)
     mcp.run()

@@ -15,10 +15,10 @@ import snowballstemmer
 from rank_bm25 import BM25Okapi
 
 SEARCH_NAME = "tool_search"
-TOKEN = re.compile(r"[^\W_]+", re.UNICODE)   # слова и числа; подчёркивание делит radar_where на radar и where
+TOKEN = re.compile(r"[^\W_]+", re.UNICODE)   # слова и числа; подчёркивание делит run_command на run и command
 CYRILLIC = re.compile(r"[а-яё]")
 NAME_WORD = re.compile(r"[A-Za-z][A-Za-z0-9_]*")   # имена инструментов MCP - латиница с подчёркиванием
-# Основы слов: «радар» в запросе находит «по радару» в описании, files - file
+# Основы слов: «память» в запросе находит «в памяти» в описании, files - file
 _RU, _EN = snowballstemmer.stemmer("russian"), snowballstemmer.stemmer("english")
 FOUND_NONE = "Ничего не найдено. Уточни запрос словами из имени или назначения инструмента."
 
@@ -58,7 +58,7 @@ def bridge_schema(names: Iterable[str]) -> dict:
             "становятся доступны со следующего шага. Уже доступные искать не нужно. Все инструменты: " + listing),
         "parameters": {"type": "object", "properties": {
             "queries": {"type": "array", "items": {"type": "string"},
-                        "description": "Запросы, по одному на нужную возможность, например ['радар где', 'файл прочитать']"},
+                        "description": "Запросы, по одному на нужную возможность, например ['память найти', 'файл прочитать']"},
         }, "required": ["queries"]},
     }}
 

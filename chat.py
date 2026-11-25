@@ -1,7 +1,7 @@
 """
 SAM Chat — интерактивный чат в терминале.
 Запуск: python chat.py
-Или с device ID: python chat.py --device workpc
+Или с device ID: python chat.py --device mypc
 """
 import sys
 import json

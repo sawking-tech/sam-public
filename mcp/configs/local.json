@@ -12,6 +12,14 @@
             "description": "Скиллы стенда для моделей вне шлюза (ADR-022)"
         },
         {
+            "name": "radar",
+            "command": "python",
+            "args": [
+                "mcp/radar_server.py"
+            ],
+            "description": "Радар присутствия: где кто сейчас, где был, разметка, запись со слов. Поднимается только при SAM_RADAR=1"
+        },
+        {
             "name": "fetch",
             "command": "uvx",
             "args": [
