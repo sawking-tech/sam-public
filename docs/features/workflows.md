@@ -271,7 +271,7 @@ steps:
 | Функция | Повод |
 |---|---|
 | `late_night` | с `SAM_LATE_FROM_H` (2) до `SAM_LATE_TO_H` (6), человек говорил за `SAM_ACTIVE_S` (10 мин); повод с точным временем |
-| `received_since_memory` | фразы людей из `voice-in.jsonl` шины (все, не только к SAM) позже прошлого срабатывания и последней записи в `_memories`, не раньше `SAM_MEMORY_REVIEW_LOOKBACK_S` (1 ч); последние `SAM_MEMORY_REVIEW_MAX_CHARS` (4000) символов |
+| `received_since_memory` | фразы людей из `voice-in.jsonl` шины (и сказанные в сторону) позже прошлого срабатывания и последней записи в `_memories`, не раньше `SAM_MEMORY_REVIEW_LOOKBACK_S` (1 ч); последние `SAM_MEMORY_REVIEW_MAX_CHARS` (4000) символов |
 | `fast_voice_ready` | только для точки решения `fast_voice`: непусто, когда сессия прогрета и отката нет (блок «Точка решения в коде») |
 
 ## Шаг основной модели
