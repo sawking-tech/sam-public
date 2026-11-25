@@ -45,13 +45,13 @@ def _far_level_stays_even():
 
 
 def _new_device_borrows_the_model():
-    fp = pf.Fingerprints({"redmi-note-13-pro-5g@phy1-ap0": {"кухня": [-60.0] * 5, "спальня": [-75.0] * 5},
-                          "s24-ultra@phy1-ap0": {"кухня": [-50.0] * 9, "спальня": [-70.0] * 9},
-                          "redmi-note-13-pro-5g@phy0-ap0": {"кухня": [-40.0] * 5}})
-    assert fp.stand_in("Redmi-Note-13-Pro@phy1-ap0") == "redmi-note-13-pro-5g@phy1-ap0"
-    assert fp.stand_in("Pixel-9@phy1-ap0") == "s24-ultra@phy1-ap0"          # нет своей модели - больше замеров
-    assert fp.stand_in("s24-ultra@phy1-ap0") == "s24-ultra@phy1-ap0"
-    probs = fp.place_probabilities("Redmi-Note-13-Pro@phy1-ap0", -61.0)
+    fp = pf.Fingerprints({"beta-max-13-pro-5g@phy1-ap0": {"кухня": [-60.0] * 5, "спальня": [-75.0] * 5},
+                          "alpha-ultra@phy1-ap0": {"кухня": [-50.0] * 9, "спальня": [-70.0] * 9},
+                          "beta-max-13-pro-5g@phy0-ap0": {"кухня": [-40.0] * 5}})
+    assert fp.stand_in("Beta-Max-13-Pro@phy1-ap0") == "beta-max-13-pro-5g@phy1-ap0"
+    assert fp.stand_in("Gamma-9@phy1-ap0") == "alpha-ultra@phy1-ap0"          # нет своей модели - больше замеров
+    assert fp.stand_in("alpha-ultra@phy1-ap0") == "alpha-ultra@phy1-ap0"
+    probs = fp.place_probabilities("Beta-Max-13-Pro@phy1-ap0", -61.0)
     assert max(probs, key=probs.get) == "кухня"
 
 

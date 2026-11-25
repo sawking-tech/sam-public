@@ -96,6 +96,7 @@ def _server_load(params):
     return module.load_skill(params.get("name", ""))
 
 
+@pytest.mark.usefixtures("radar_on")
 @pytest.mark.parametrize("load", [_gateway_load, _server_load], ids=["gateway", "mcp-server"])
 def test_load_skill_by_name(skill_dirs, load):
     _write(skill_dirs, "radar", "---\nname: radar\ndescription: Где мои люди\n---\nтело радара")

@@ -141,7 +141,7 @@ async def test_unaddressed_phrase_skips_model_and_unsure_gets_right_to_silence()
 
 @pytest.mark.parametrize("request_quiet", ["Стоп", "Пока не озвучивай ничего, мы тут разговариваем"])
 async def test_quiet_on_request_model_called_only_by_name(request_quiet):
-    """Запись 9 окт 22:26-22:28: после «Стоп» ни одного ответа, пока SAM не позвали по имени."""
+    """Запись живого разговора: после «Стоп» ни одного ответа, пока SAM не позвали по имени."""
     clock, said = Clock(100.0), []
     stand = voice_stand(FakeLLM("Длинный ответ.", "Слушаю."), clock=clock,
                         say=lambda session, text: said.append(text) or True)

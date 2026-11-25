@@ -4,7 +4,7 @@
 без этой проходки (heldout-<проходка>/ от scripts/radar_nn_gru.py --export --heldout), чтобы проверка была честной. Раз в секунду точка потока каждого
 телефона переводится в область (как в разметке) и сравнивается с метками шкалы набора: доля верной области и комнаты по наборам.
 
-Запуск: python scripts/radar_nn_flow_replay.py --data data/walks/nn --tag 2026-10-11 --raw data/presence_tracks/raw-20261011.jsonl [--walks w1 w2 w3] [--weights 0.1 0.2 0.4]"""
+Запуск: python scripts/radar_nn_flow_replay.py --data data/walks/nn --tag <дата> --raw data/presence_tracks/raw-ГГГГММДД.jsonl [--walks w1 w2 w3] [--weights 0.1 0.2 0.4]"""
 from __future__ import annotations
 
 import argparse
@@ -23,7 +23,7 @@ from radar.presence_random import Randomness  # noqa: E402
 
 WARMUP_S = 30.0                 # поток разгоняется на записи перед проходкой: окно в 14 с и старт
 SEED = 7
-PHONES = {"S24": "phone-a", "Redmi": "phone-b"}
+PHONES = {"PhoneA": "phone-a", "PhoneB": "phone-b"}
 
 
 def station(row: dict) -> rs.Station:

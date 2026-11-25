@@ -10,7 +10,8 @@ slug из `apps.RESERVED_SLUGS`: контейнерному приложению
 Приложения и монитор поставлены всегда и не удаляются: это страницы самого шлюза, их health check - его. Радар -
 опция: удаление (`remove`) снимает его манифест и кладёт в его папку метку `removed`; `ensure` его больше не пишет,
 агрегатор MCP не поднимает сервер `radar` (`mcp/mcp_aggregator.py`, та же метка), данные радара `data/presence_*`
-остаются. Вернуть - `install` (страница приложений: «поставить радар»).
+остаются. Вернуть - `install` (страница приложений: «поставить радар»). Выключенный радар (`gateway/radar_switch.py`)
+не поставляется и не читается с диска: манифест, оставшийся с прошлого включения, не показывается.
 
 Функции радара для SAM - методы его OpenAPI с меткой x-sam-tool (`radar/presence_sam_api.py`), как у живых
 приложений: `app_list` читает их с адреса радара, `app_call(radar, where, {person})` вызывает
@@ -29,7 +30,7 @@ from pathlib import Path
 from typing import Awaitable, Callable, Mapping
 from urllib.parse import urlsplit, urlunsplit
 
-from . import apps, radar_client, restart
+from . import apps, radar_client, radar_switch, restart
 from .core_paths import REPO
 
 KIND = "builtin"                    # вид в манифесте: процесс снаружи контейнерного рантайма
@@ -66,11 +67,20 @@ class Builtin:
 FIELDS = frozenset(f.name for f in fields(Builtin))
 
 
+def visible(slug: str, environ: Mapping[str, str] = os.environ) -> bool:
+    """Есть ли встроенное приложение на этой машине: всё, кроме выключенного радара."""
+    return slug != apps.RADAR_SLUG or radar_switch.enabled(environ)
+
+
+def slugs(environ: Mapping[str, str] = os.environ) -> list[str]:
+    return [slug for slug in sorted(apps.RESERVED_SLUGS) if visible(slug, environ)]
+
+
 def defaults(environ: Mapping[str, str] = os.environ) -> list[Builtin]:
     """Поставляемые манифесты: адреса - как у клиентов стенда (SAM_SERVER, SAM_RADAR_URL)."""
     gateway = (environ.get(apps.GATEWAY_ENV) or apps.DEFAULT_GATEWAY).rstrip("/")
     radar = (environ.get(radar_client.URL_ENV) or radar_client.DEFAULT_URL).rstrip("/")
-    return [
+    shipped = [
         Builtin(slug=apps.APPS_SLUG, name="Приложения",
                 description="Плитки приложений SAM: открыть, приостановить, настроить, удалить; страница шлюза",
                 url=gateway + APPS_PATH, health=gateway + HEALTH_PATH, removable=False),
@@ -81,6 +91,7 @@ def defaults(environ: Mapping[str, str] = os.environ) -> list[Builtin]:
                 description="Где кто дома: комнаты, места, история, устройства; отдельный сервис",
                 url=radar + RADAR_PAGE, health=radar + HEALTH_PATH, control=restart.RADAR),
     ]
+    return [b for b in shipped if visible(b.slug, environ)]
 
 
 def _path(root: Path, slug: str) -> Path:
@@ -106,7 +117,7 @@ def ensure(root: Path, shipped: list[Builtin] | None = None) -> list[str]:
 def scan(root: Path) -> tuple[list[Builtin], list[str]]:
     """Встроенные приложения с диска и строки о битых манифестах."""
     found, errors = [], []
-    for slug in sorted(apps.RESERVED_SLUGS):
+    for slug in slugs():
         path = _path(root, slug)
         if not path.is_file():
             continue
@@ -130,7 +141,7 @@ def is_removed(root: Path, slug: str) -> bool:
 
 def removed(root: Path) -> list[str]:
     """Встроенные приложения, которые человек удалил: их можно поставить снова."""
-    return [slug for slug in sorted(apps.RESERVED_SLUGS) if is_removed(root, slug)]
+    return [slug for slug in slugs() if is_removed(root, slug)]
 
 
 def remove(root: Path, slug: str) -> str | None:
@@ -149,8 +160,8 @@ def remove(root: Path, slug: str) -> str | None:
 
 def install(root: Path, slug: str, shipped: list[Builtin] | None = None) -> str | None:
     """Поставить снятое встроенное приложение снова."""
-    if slug not in apps.RESERVED_SLUGS:
-        return f"встроенного приложения {slug} нет: есть {', '.join(sorted(apps.RESERVED_SLUGS))}"
+    if slug not in slugs():
+        return f"встроенного приложения {slug} нет: есть {', '.join(slugs())}"
     (Path(root) / slug / REMOVED).unlink(missing_ok=True)
     errors = ensure(root, [b for b in (shipped if shipped is not None else defaults()) if b.slug == slug])
     return errors[0] if errors else None

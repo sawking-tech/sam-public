@@ -146,12 +146,12 @@ def test_zones_added_named_and_removed_via_hub_and_api(api, tmp_path):
 def test_device_places_set_saved_and_read_via_api(api, tmp_path):
     hub = ph.PresenceHub(ph.MODE_RSSI, pr.EMPTY_LAYOUT, clock=lambda: 10.0, places_file=tmp_path / "places.json")
     client = api(hub)
-    ok = client.post("/sam/presence/place", json={"name": " S24 ", "place": "рабочий стол"})
-    assert ok.status_code == 200 and ok.json()["places"] == {"s24": "рабочий стол"}
-    assert json.loads((tmp_path / "places.json").read_text(encoding="utf-8")) == {"s24": "рабочий стол"}
-    assert client.post("/sam/presence/place", json={"name": "s24", "place": ""}).json()["places"] == {}
+    ok = client.post("/sam/presence/place", json={"name": " Alpha ", "place": "рабочий стол"})
+    assert ok.status_code == 200 and ok.json()["places"] == {"alpha": "рабочий стол"}
+    assert json.loads((tmp_path / "places.json").read_text(encoding="utf-8")) == {"alpha": "рабочий стол"}
+    assert client.post("/sam/presence/place", json={"name": "alpha", "place": ""}).json()["places"] == {}
     assert client.post("/sam/presence/place", json={"name": " ", "place": "x"}).status_code == 422
-    assert api(_hub(ph.MODE_OFF)).post("/sam/presence/place", json={"name": "s24", "place": "x"}).status_code == 409
+    assert api(_hub(ph.MODE_OFF)).post("/sam/presence/place", json={"name": "alpha", "place": "x"}).status_code == 409
 
 
 @pytest.mark.parametrize("mode, layout, heat_saved", [
@@ -173,7 +173,7 @@ def test_service_serves_health_page_and_message(api):
     assert client.get("/static/presence/figure.js").status_code == 200
     assert client.get("/static/vendor/three/build/three.module.js").status_code == 200    # three.js - в пакете радара
     assert client.get("/static/shell/sam.css").status_code == 200       # каркас - из шлюза (SAM-198)
-    assert client.post("/sam/presence/message", json={"channel": "chat", "device": "s24"}).json() == {"ok": True, "applied": True}
+    assert client.post("/sam/presence/message", json={"channel": "chat", "device": "alpha"}).json() == {"ok": True, "applied": True}
     assert api(_hub(ph.MODE_OFF)).post("/sam/presence/message", json={"channel": "chat"}).status_code == 409
 
 
@@ -182,7 +182,7 @@ def jitter(feed):
     reading = None
     for i in range(QUIET_POLLS + JITTER_POLLS):
         shake = JITTER_DB if i >= QUIET_POLLS and i % 2 else 0.0
-        reading = feed([rs.Station("a", "phy0", -50.0 + shake, 0, "S24")])
+        reading = feed([rs.Station("a", "phy0", -50.0 + shake, 0, "Alpha")])
     return reading
 
 
@@ -211,4 +211,4 @@ def test_lower_noise_floor_counts_jitter_as_motion():
     quiet = jitter(rs.MotionDetector(tuning=rs.Tuning(noise_floor_db=2.0)).update)
     sensitive = jitter(rs.MotionDetector(tuning=rs.Tuning(noise_floor_db=0.0)).update)
     assert sensitive.activity > quiet.activity
-    assert sensitive.lines["a"]["name"] == "S24" and "std" in sensitive.lines["a"]
+    assert sensitive.lines["a"]["name"] == "Alpha" and "std" in sensitive.lines["a"]

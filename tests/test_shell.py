@@ -87,6 +87,7 @@ def test_shell_never_puts_markup_into_its_own_page():
     assert 'sandbox: "allow-scripts"' in text
 
 
+@pytest.mark.usefixtures("radar_on")
 def test_nav_lists_monitor_apps_and_an_installed_radar(tmp_path):
     assert [i["key"] for i in shell_config.nav(tmp_path, 8000)] == ["apps", "monitor"]
     builtin_apps.ensure(tmp_path, builtin_apps.defaults(ENV))

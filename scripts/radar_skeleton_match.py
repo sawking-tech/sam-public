@@ -11,7 +11,7 @@
 пределах GAINS, DTW с местным наклоном 0,5-2 (шаги (1,1), (1,2), (2,1)). Честность: растяжение по DTW (длина запроса на ходу к длине хода
 шаблона) сверяется с отношением длительностей быстрого перехода и шаблона; расхождение больше STRETCH_TOLERANCE раз - совпадение ложное.
 
-Запуск: python scripts/radar_skeleton_match.py --data data/walks/nn --tag 2026-10-11"""
+Запуск: python scripts/radar_skeleton_match.py --data data/walks/nn --tag <дата>"""
 from __future__ import annotations
 
 import argparse

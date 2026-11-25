@@ -40,7 +40,7 @@ DEFAULT_TTS = "silero"
 FALLBACK_TTS = os.getenv("SAM_TTS_FALLBACK", "silero")  # основной не ответил - говорим этим
 FALLBACK_VOICE = os.getenv("SAM_TTS_FALLBACK_VOICE", "xenia")  # Ксюша (Silero)
 DEFAULT_VOICE = os.getenv("SAM_VOICE", "xenia")         # голос реестра; xenia - Ксюша
-SPEED = env_float("SAM_VOICE_SPEED", 0.95)              # 8 окт: 1,15 и 1,07 - «слишком быстро»
+SPEED = env_float("SAM_VOICE_SPEED", 0.95)              # на слух 1,15 и 1,07 слишком быстро
 CONNECT_TIMEOUT = 5.0
 REPLY_TIMEOUT = 30.0   # дольше сервер молчать между кусками не может: значит, завис
 DEFAULT_RATE = 22050   # если сервер не назвал частоту в audio-start
@@ -146,7 +146,7 @@ def stream(text: str, voice: str = DEFAULT_VOICE) -> Iterator[Chunk]:
 
 def session_voice(d=None) -> tuple[str, float]:
     """Голос и темп из session.json - один источник для проигрывателя и заготовок очереди.
-    Без него заготовки звучали голосом по умолчанию (9 окт 00:10: «откуда второй голос»)."""
+    Без него заготовки звучали голосом по умолчанию, вторым голосом рядом с основным."""
     try:
         s = read_json((d or bus_dir()) / SESSION_JSON)
     except Exception:

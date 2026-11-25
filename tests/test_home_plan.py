@@ -62,7 +62,7 @@ def test_layout_file_loads_in_radar(tmp_path):
 @pytest.mark.parametrize("parse, item, expected", [
     (hp.parse_object, "Диван (примерно)=10.7,5.3,2.0,0.9,0.87,180",
      {"approx": True, "kind": "furniture", "x": 9.7, "z": 4.85, "angle": pytest.approx(3.14159, abs=1e-4)}),
-    (hp.parse_place, "кресло Ирины=10.4,1.0", {"label": "кресло Ирины", "x": 10.4, "z": 1.0}),
+    (hp.parse_place, "кресло у окна=10.4,1.0", {"label": "кресло у окна", "x": 10.4, "z": 1.0}),
     (hp.parse_object, "Диван=1,2,3", "--object"),
     (hp.parse_object, "=1,2,3,4,5", "--object"),
     (hp.parse_object, "Диван=a,b,c,d,e", "--object"),

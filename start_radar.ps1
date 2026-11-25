@@ -21,6 +21,8 @@ if ($Stop -or $running.Count -gt 0) {
     $running | ForEach-Object { Stop-Process -Id $_.ProcessId -Force }
     if ($Stop) { Write-Host "Radar stopped" -ForegroundColor Gray; return }
 }
+& $PYTHON -m gateway.radar_switch   # выключенный радар не запускается: строка, что сделать, и код выхода 1
+if ($LASTEXITCODE -ne 0) { exit 1 }
 New-Item -ItemType Directory -Force -Path "$ROOT\logs" | Out-Null
 Start-Process cmd -WindowStyle Hidden -WorkingDirectory $ROOT -ArgumentList "/c `"`"$PYTHON`" -u -m $MODULE >> $LOG 2>&1`""
 Write-Host "Radar started, log $LOG" -ForegroundColor Green

@@ -187,7 +187,7 @@ def test_heat_map_counts_owned_presence_and_cools_with_time():
     assert old.counts[old.cell_of(1.0, 1.0)] == pytest.approx(stay / 2, rel=0.05)
 
 
-WALKS = [{"device": "s24", "points": [{"t": 0.0, "x": 1.0, "z": 1.0, "label": "a"}, {"t": 60.0, "x": 1.0, "z": 1.0, "label": "b"}]}]
+WALKS = [{"device": "alpha", "points": [{"t": 0.0, "x": 1.0, "z": 1.0, "label": "a"}, {"t": 60.0, "x": 1.0, "z": 1.0, "label": "b"}]}]
 BOX = {"walls": [{"x1": 0, "z1": 0, "x2": 5, "z2": 0, "t": 0.2, "h": 2.5}, {"x1": 5, "z1": 0, "x2": 5, "z2": 5, "t": 0.2, "h": 2.5},
                  {"x1": 5, "z1": 5, "x2": 0, "z2": 5, "t": 0.2, "h": 2.5}, {"x1": 0, "z1": 5, "x2": 0, "z2": 0, "t": 0.2, "h": 2.5}],
        "objects": [], "rooms": [{"id": "h", "title": "x", "x": 0, "z": 0, "w": 5, "d": 5}]}
@@ -207,5 +207,5 @@ def test_clearing_heat_hides_recorded_walks_across_restart(tmp_path):
     assert hub.walks() == []
     again = hub_with_walks(tmp_path, clock=lambda: 200.0)
     assert again.walks() == []
-    (tmp_path / "walks.json").write_text(json.dumps(WALKS + [{"device": "s24", "points": [{"t": 150.0, "x": 2.0, "z": 2.0}, {"t": 180.0, "x": 3.0, "z": 2.0}]}]))
+    (tmp_path / "walks.json").write_text(json.dumps(WALKS + [{"device": "alpha", "points": [{"t": 150.0, "x": 2.0, "z": 2.0}, {"t": 180.0, "x": 3.0, "z": 2.0}]}]))
     assert len(again.walks()) == 1            # прогулка, записанная после очистки, показывается

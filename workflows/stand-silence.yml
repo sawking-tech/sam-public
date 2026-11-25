@@ -17,8 +17,7 @@ steps:
       Тревога: надзор стенда молчит (повод ниже). Мог умереть сам надзор, а могло сломаться больше, как минимум шина
       событий шлюза, через которую надзор тебе отчитывается. Проверь health check по порядку: сначала шину - шлюз
       http://localhost:8000/health (components: mongo, qdrant, mcp; stand_watch - возраст последней отбивки), потом
-      модули - MCP http://localhost:3000/health, эмбеддер http://localhost:10204/health, радар
-      http://localhost:8010/health. Проверяет воркер (spawn_agent): mcp_call на ПК стенда, curl или powershell
+      модули - MCP http://localhost:3000/health, эмбеддер http://localhost:10204/health. Проверяет воркер (spawn_agent): mcp_call на ПК стенда, curl или powershell
       Invoke-WebRequest; песочница не годится - из неё стенд не виден. Упавший модуль перезапусти сама, без вопроса
       (restart_component; MCP лежит - restart_component mcp, потом проверка), и скажи вслух одной-двумя короткими
       фразами, что надзор молчит, что лежало и что ты сделала; надзор поднимается командой

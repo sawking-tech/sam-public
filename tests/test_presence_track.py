@@ -25,7 +25,7 @@ def test_measure_reads_height_width_and_floor_center_from_the_cloud():
 @pytest.mark.parametrize("measure, kind, profiles, profile", [
     (_m(1.84, 0.49), tk.PERSON, ALL, TALL),
     (_m(1.67, 0.43), tk.PERSON, ALL, SHORT),
-    (_m(0.3, 0.5), tk.PET, ALL, PET),                                 # кошка
+    (_m(0.3, 0.5), tk.PET, ALL, PET),                                 # питомец
     (_m(1.75, 0.46), tk.PERSON, ALL, None),                           # посередине между профилями: гость
     (_m(1.85, 0.50), tk.PERSON, [PET], None),                         # профиль другого вида не подходит
     (_m(0.05), None, ALL, None),                                      # шум ниже питомца

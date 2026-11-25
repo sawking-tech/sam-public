@@ -2,7 +2,7 @@
 
 Имена устройств заменяются псевдонимами (--name начало_имени=псевдоним), остальные становятся other-1, other-2 по порядку появления; идентификатор станции
 (хэш MAC) и дата не выгружаются, время идёт в секундах от начала интервала. Запуск:
-python scripts/radar_tracks_export.py data/presence_tracks/tracks-20261010.jsonl 2026-10-10 19:16:30 19:34:30 out.jsonl --name s24=phone-a --name redmi=phone-b"""
+python scripts/radar_tracks_export.py data/presence_tracks/tracks-ГГГГММДД.jsonl ГГГГ-ММ-ДД ЧЧ:ММ:СС ЧЧ:ММ:СС out.jsonl --name <начало_имени>=phone-a --name <начало_имени>=phone-b"""
 from __future__ import annotations
 
 import argparse

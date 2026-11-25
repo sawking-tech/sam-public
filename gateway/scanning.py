@@ -3,7 +3,7 @@
 
 Ворота workflow `workflows/scanning.yml`: `python -m gateway.scanning` печатает повод для основной модели или
 ничего (пустой вывод - модель не зовётся). Повод из двух частей:
-- услышанное о положении: фразы после прошлого запуска, где названо место квартиры или слово о положении
+- услышанное о положении: фразы после прошлого запуска, где названо место дома или слово о положении
   («лёг», «иду», «сижу») - модель вносит сказанное в радар инструментом radar_tell;
 - вопрос: кого спросить, где он и чем занят, или его партнёра, если сам человек промолчал.
 
@@ -17,7 +17,7 @@
 Ответом считается фраза спрошенного или фраза без опознания говорящего после вопроса: опознание голоса
 не всегда называет человека, и неопознанный ответ лучше, чем лишний вопрос партнёру.
 
-Флаг SAM_SCANNING, по умолчанию выключено. Решение - чистая функция decide; радар, шина, каталог и файл
+Флаг SAM_SCANNING, по умолчанию выключено; без радара (`gateway/radar_switch.py`) не работает. Решение - чистая функция decide; радар, шина, каталог и файл
 состояния читаются функциями read_* и main.
 """
 from __future__ import annotations
@@ -31,7 +31,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
 
-from . import quiet_mode, radar_client
+from . import quiet_mode, radar_client, radar_switch
 from .env import env_bool, env_float
 from .workflow_gates import _parse_ts, read_phrases
 
@@ -224,7 +224,7 @@ def load_state(path: Path, now: float) -> State:
 
 
 def main() -> int:
-    if not env_bool(ENABLED_ENV, False):
+    if not (radar_switch.enabled() and env_bool(ENABLED_ENV, False)):
         return 0
     radar = read_radar()
     if radar is None:

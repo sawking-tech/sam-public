@@ -24,6 +24,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from gateway.access import AccessMiddleware
+from gateway.env import env_bool
 
 from . import presence_answers as pa
 from . import presence_flow_history as pfh
@@ -41,6 +42,8 @@ SHELL_DIR = Path(__file__).resolve().parents[1] / "gateway" / "static" / "shell"
 SHELL_URL = "/static/shell"
 GATEWAY_MARK = "__GATEWAY__"        # в presence.html: адрес шлюза, с которого страница берёт каркас SAM
 GATEWAY_ENV, DEFAULT_GATEWAY_PORT = "SAM_SERVER", 8000
+FIGURE_JOKE_ENV = "SAM_RADAR_FIGURE_JOKE"
+FIGURE_JOKE_DEFAULT = False
 
 
 def gateway_port() -> int:
@@ -72,7 +75,7 @@ class PresenceMessage(BaseModel):
     device: str | None = None
     who: str | None = None
     level: float | None = None      # громкость фразы при речи (rms слуха)
-    place: str | None = None        # для channel told: ключ места со слов человека (redmi - кровать у Redmi, s24 - стол)
+    place: str | None = None        # для channel told: ключ места со слов человека (кровать, стол)
     pose: str | None = None         # для channel told: поза со слов (stand, sit, lie); нет - поза места
 
 
@@ -254,6 +257,11 @@ def create_app(hub: PresenceHub, clock: Callable[[], float] = time.time) -> Fast
         """Отладка: автопилот случайных маршрутов для всех, чтобы подбирать параметры анимации."""
         require_enabled()
         return hub.set_autopilot(body.on, body.period_s, body.mode)
+
+    @app.get("/sam/presence/figure")
+    async def figure():
+        """Настройка фигуры для страницы: joke - показывать ли шутку (radar/static/presence/figure.js)."""
+        return {"joke": env_bool(FIGURE_JOKE_ENV, FIGURE_JOKE_DEFAULT)}
 
     @app.get("/sam/presence/debug")
     async def debug_get():

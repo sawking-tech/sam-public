@@ -416,7 +416,7 @@ def off_loop_probe(result):
 
 from datetime import datetime as _datetime, timedelta as _timedelta, timezone as _timezone  # noqa: E402
 
-WORKFLOW_T0 = _datetime(2026, 10, 10, 2, 0, tzinfo=_timezone(_timedelta(hours=6)))   # Омск, как стенд
+WORKFLOW_T0 = _datetime(2026, 10, 10, 2, 0, tzinfo=_timezone(_timedelta(hours=6)))   # часовой пояс фиксирован: тесты не зависят от машины
 
 
 def workflow_scheduler(flows, run_step, now=WORKFLOW_T0):

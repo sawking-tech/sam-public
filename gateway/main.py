@@ -1601,15 +1601,23 @@ APPS_REVIVE = env_bool("SAM_APPS_REVIVE", True)
 @app.on_event("startup")
 async def _revive_apps() -> None:
     """Живые приложения SAM (SAM-182), которые должны работать и не работают, - поднять; docker в потоке. Манифесты
-    встроенных (монитор, радар) - записать, если их нет."""
+    встроенных (монитор, радар) - записать, если их нет.
+
+    Манифесты пишутся до выхода из старта: страница приложений и прокси находят их сразу, а не через мгновение.
+    Docker идёт фоном: старт шлюза его не ждёт."""
     from . import apps, builtin_apps
+
+    try:
+        for line in await asyncio.to_thread(builtin_apps.ensure, apps.APPS_DIR):
+            print(f"[Apps] {line}")
+    except Exception as e:   # старт шлюза не зависит от приложений: одна строка вместо стека
+        print(f"[Apps] подъём приложений не прошёл: {type(e).__name__}: {e}")
+        return
 
     async def revive() -> None:
         try:
-            lines = await asyncio.to_thread(builtin_apps.ensure, apps.APPS_DIR)
-            if APPS_REVIVE:
-                lines += await asyncio.to_thread(apps.revive, apps.APPS_DIR)
-        except Exception as e:   # старт шлюза не зависит от приложений: одна строка вместо стека
+            lines = await asyncio.to_thread(apps.revive, apps.APPS_DIR) if APPS_REVIVE else []
+        except Exception as e:
             lines = [f"подъём приложений не прошёл: {type(e).__name__}: {e}"]
         for line in lines:
             print(f"[Apps] {line}")

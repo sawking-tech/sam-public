@@ -56,7 +56,7 @@ def test_replay_score_metrics(actual, expected):
 
 
 def test_replay_picks_model_by_device_and_band_or_exits():
-    models = {"s24-ultra@phy1-ap0": {"n": 1}, "s24-ultra@phy0-ap0": {"n": 2}, "redmi@phy1-ap0": {"n": 3}}
-    assert rfr.pick_model(models, "s24", "phy0-ap0") == {"n": 2}
+    models = {"alpha-ultra@phy1-ap0": {"n": 1}, "alpha-ultra@phy0-ap0": {"n": 2}, "beta@phy1-ap0": {"n": 3}}
+    assert rfr.pick_model(models, "alpha", "phy0-ap0") == {"n": 2}
     with pytest.raises(SystemExit):
-        rfr.pick_model(models, "pixel", "phy1-ap0")
+        rfr.pick_model(models, "gamma", "phy1-ap0")

@@ -1,6 +1,6 @@
 """Отметить место устройства для отпечатков радара (SAM-118): несколько сообщений «я здесь с устройством» подряд, по одному отпечатку на каждое.
 
-Запуск: python scripts/radar_mark_place.py "диван в зале" [--device s24] [--samples 5] [--interval 2] [--delay 30]
+Запуск: python scripts/radar_mark_place.py "диван в зале" [--device <часть имени>] [--samples 5] [--interval 2] [--delay 30]
 Адрес радара - SAM_RADAR_URL (по умолчанию http://localhost:8010)."""
 from __future__ import annotations
 
@@ -11,7 +11,7 @@ import time
 import urllib.request
 
 DEFAULT_URL = "http://localhost:8010"
-DEFAULT_DEVICE = "s24"       # подстрока имени устройства, которое носит человек
+DEFAULT_DEVICE = "phone"      # подстрока имени устройства, которое носит человек
 DEFAULT_SAMPLES = 5          # отпечатков за отметку: уровень шумит, одного мало (в классификации нужно не менее 3 на место)
 DEFAULT_DELAY_S = 0.0        # пауза до первого отсчёта: человек успевает дойти и лечь с устройством, писать в чат ему нечем
 DEFAULT_INTERVAL_S = 2.0     # между отсчётами уровень успевает обновиться (опрос роутера около секунды)

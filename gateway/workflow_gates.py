@@ -35,14 +35,17 @@ def cursor(now: datetime, last_run: datetime | None, memory_written: datetime | 
 
 
 def heard_since(phrases: list[dict], since: datetime, max_chars: int = MAX_CHARS) -> str:
-    """Фразы людей позже since строками «ЧЧ:ММ кто: текст»; без черновиков и эха. Не влезло - старые отбрасываются."""
+    """Фразы людей позже since строками «ЧЧ:ММ кто: текст»; без черновиков и эха. Не влезло - старые отбрасываются.
+
+    Время - в поясе самой фразы, а не машины: журнал пишет его слух на стенде, и модель должна видеть те же
+    часы, что человек. `astimezone()` без аргумента переводил 01:40+06:00 в 19:40 на машине в UTC."""
     lines = []
     for p in phrases:
         ts = _parse_ts(p.get("ts"))
         text = str(p.get("text") or "").strip()
         if ts is None or ts <= since or not text or p.get("partial") or p.get("echo"):
             continue
-        lines.append(f"{ts.astimezone():%H:%M} {p.get('who') or 'неизвестный'}: {text}")
+        lines.append(f"{ts:%H:%M} {p.get('who') or 'неизвестный'}: {text}")
     out, size = [], 0
     for line in reversed(lines):
         if size + len(line) > max_chars:

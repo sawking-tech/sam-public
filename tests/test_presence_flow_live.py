@@ -251,11 +251,11 @@ def test_device_spots_are_lobes_and_point_spot():
     # старый файл по устройствам проходит как есть
     ({"models": {"a@phy1-ap0": {"l0_db": -40.0, "n": 2.0, "wall_db_per_m": 20.0}}}, "A", "phy1-ap0", {"l0_db": -40.0, "n": 2.0}),
     # новый телефон берёт модель той же модели телефона на своём диапазоне
-    ({"models": {"redmi-note-13-pro-5g@phy1-ap0": {"l0_db": -40.0}, "s24-ultra@phy1-ap0": {"l0_db": -38.0}, "redmi-note-13-pro-5g@phy0-ap0": {"l0_db": -45.0}}},
-     "Redmi-Note-13-Pro", "phy1-ap0", {"l0_db": -40.0}),
-    ({"models": {"s24-ultra@phy1-ap0": {"l0_db": -38.0}}}, "S24-Ultra", "phy1-ap0", {"l0_db": -38.0}),
-    ({"models": {"s24-ultra@phy1-ap0": {"l0_db": -38.0}}}, "Pixel", "phy2-ap0", None),
-    ({"models": {"s24-ultra@phy1-ap0": {"l0_db": -38.0}}}, None, "phy1-ap0", None),
+    ({"models": {"beta-max-13-pro-5g@phy1-ap0": {"l0_db": -40.0}, "alpha-ultra@phy1-ap0": {"l0_db": -38.0}, "beta-max-13-pro-5g@phy0-ap0": {"l0_db": -45.0}}},
+     "Beta-Max-13-Pro", "phy1-ap0", {"l0_db": -40.0}),
+    ({"models": {"alpha-ultra@phy1-ap0": {"l0_db": -38.0}}}, "Alpha-Ultra", "phy1-ap0", {"l0_db": -38.0}),
+    ({"models": {"alpha-ultra@phy1-ap0": {"l0_db": -38.0}}}, "Gamma", "phy2-ap0", None),
+    ({"models": {"alpha-ultra@phy1-ap0": {"l0_db": -38.0}}}, None, "phy1-ap0", None),
 ], ids=["band-shift", "band-without-model", "old-file", "same-model", "other-model", "unknown", "no-name"])
 def test_level_model_resolved_per_device_and_band(models, name, iface, expected):
     model = pfl.model_for(pfl.resolve_models(models), name, iface)

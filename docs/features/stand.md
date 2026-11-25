@@ -259,4 +259,4 @@ claude mcp add --scope project --transport http sam-stand http://localhost:3000/
 
 - где: `:5678`, контейнер dev-compose;
 - зачем: большие сценарии;
-- лёгкие workflow по файлу, как GitHub Actions, - не здесь, а в шлюзе (блок «Workflow стенда»).
+- лёгкие workflow по файлу, как GitHub Actions, идут в шлюзе (блок «Workflow стенда»).

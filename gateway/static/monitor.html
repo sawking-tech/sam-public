@@ -6,7 +6,7 @@
   <title>SAM Monitor</title>
   <!-- шрифты каркаса лежат рядом (sam.css, @font-face): основное начертание - заранее, без CDN -->
   <link rel="preload" href="/static/shell/fonts/onest-cyrillic.woff2" as="font" type="font/woff2" crossorigin>
-  <!-- каркас страниц SAM (docs/features/shell.md, раскладка - docs/features/shell-layout.md): лента и ввод - в колонке
+  <!-- каркас страниц SAM (docs/features/shell.md, раскладка - docs/features/shell.md): лента и ввод - в колонке
        каркаса на высоту окна, статус - в центре полосы, связь и STOP - справа, задачи, настройки и фильтр - в панели. -->
   <link rel="stylesheet" href="/static/shell/shell.css">
   <link rel="stylesheet" href="/static/shell/sam.css">
@@ -17,7 +17,7 @@
   <script type="module" src="/static/monitor/main.js"></script>
   <script src="/static/shell/shell.js" defer data-page="monitor" data-fill="1"></script>
   <style>
-    /* Монитор - прибор наблюдения в каркасе SAM (docs/features/shell-layout.md): лента событий как лог приборов,
+    /* Монитор - прибор наблюдения в каркасе SAM (docs/features/shell.md): лента событий как лог приборов,
        время - узкой колонкой телеметрии, полоса-метка слева - смысл события. Цвета - только токены «ночного дома»
        (gateway/static/shell/sam.css); старые имена монитора - их псевдонимы. */
     :root {

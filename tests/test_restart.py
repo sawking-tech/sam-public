@@ -16,7 +16,8 @@ START_SAM = Path(__file__).resolve().parents[1] / "start_sam.ps1"
 @pytest.mark.parametrize("name, env, windows, kind, has", [
     ("mcp", {}, True, rs.COMMAND, 'start_sam.ps1" -Mcp'),
     ("TTS", {}, True, rs.COMMAND, 'start_sam.ps1" -Tts'),               # имя без регистра
-    ("radar", {}, True, rs.COMMAND, "start_radar.ps1"),
+    ("radar", {"SAM_RADAR": "1"}, True, rs.COMMAND, "start_radar.ps1"),
+    ("radar", {}, True, rs.REFUSED, "нет компонента 'radar'"),
     ("apps", {}, True, rs.REFUSED, "есть: gateway"),                   # страница приложений - часть шлюза (SAM-204)
     ("mcp", {"SAM_RESTART_CMD_MCP": "systemctl restart sam-mcp"}, False, rs.COMMAND, "systemctl restart sam-mcp"),
     ("mcp", {}, False, rs.REFUSED, "перезапуск mcp здесь не настроен: SAM_RESTART_CMD_MCP"),
@@ -25,7 +26,7 @@ START_SAM = Path(__file__).resolve().parents[1] / "start_sam.ps1"
     ("gateway", {}, False, rs.REFUSED, "SAM_RESTART_CMD_GATEWAY"),
     ("cortex", {}, False, rs.CLOSE_CORTEX, ""),
     ("monitor", {}, True, rs.REFUSED, "есть: gateway"),
-], ids=["mcp", "case", "radar", "apps", "env", "linux-none", "self-tab", "self-cmd", "self-linux-none", "cortex", "unknown"])
+], ids=["mcp", "case", "radar", "radar-off", "apps", "env", "linux-none", "self-tab", "self-cmd", "self-linux-none", "cortex", "unknown"])
 def test_plan_by_name_os_and_env(name, env, windows, kind, has):
     p = rs.plan(name, env, windows)
     assert p.kind == kind and has in (p.command if kind != rs.REFUSED else p.reason)
@@ -155,14 +156,16 @@ def test_tool_is_given_to_main_model_and_workers_without_privilege():
     assert not privilege_key.needs("POST", "/sam/stand/restart")
 
 
+@pytest.mark.usefixtures("radar_on")
 def test_restart_endpoint_answers_with_the_restarter_line(app_client, monkeypatch):
     client, _ = app_client
     rig = _Rig()
-    monkeypatch.setattr(agent, "restarter", rig.restarter())
+    monkeypatch.setattr(agent, "restarter", rig.restarter(environ={"SAM_RADAR": "1"}))   # выключенного радара нет в names()
     r = client.post("/sam/stand/restart", json={"name": "radar"})
     assert r.status_code == 200 and r.json()["result"].startswith("radar: перезапущен")
 
 
+@pytest.mark.usefixtures("radar_on")
 def test_supervised_names_map_to_restart_names_and_compression_does_not():
     from gateway import stand_checks as sc
     supervised = set(sc.SUPERVISED) | {sc.CORTEX}

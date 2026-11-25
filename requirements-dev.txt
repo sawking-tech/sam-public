@@ -2,3 +2,11 @@
 pytest>=8.0.0
 pytest-asyncio>=0.24.0
 mongomock>=4.2.0
+
+# Импорт на тестах, а не работа с устройствами: radar/*.py тянет scipy на импорте,
+# voice/layer/audio_core.py и say_out.py - sounddevice. На CI apt-пакет libportaudio2 обязателен,
+# сам звук не нужен: карты и модели подменяют фикстуры. Тесты, которым нужна настоящая цепочка
+# воспроизведения (soxr, pedalboard), помечены `hardware` и в CI не идут.
+numpy>=1.26
+scipy>=1.11
+sounddevice>=0.4.6

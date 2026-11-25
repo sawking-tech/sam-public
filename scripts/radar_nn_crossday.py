@@ -7,7 +7,7 @@
 Предобучение без разметки (--pretrain): тот же кодировщик учится предсказывать уровень следующей секунды по окну на всех неразмеченных рядах
 носимого телефона (файлы и исключаемые интервалы - в описании проходок, unlabeled), затем дообучается на проходках.
 
-Запуск: python scripts/radar_nn_crossday.py --data data/walks/nn --tag 2026-10-11 --timeline data/radar_walk_timeline.json --phone-a s24 [--pretrain]"""
+Запуск: python scripts/radar_nn_crossday.py --data data/walks/nn --tag <дата> --timeline data/radar_walk_timeline.json --phone-a <часть имени> [--pretrain]"""
 from __future__ import annotations
 
 import argparse
@@ -113,7 +113,7 @@ def main() -> None:
     ap.add_argument("--data", type=Path, default=Path("data/walks/nn"))
     ap.add_argument("--tag", required=True)
     ap.add_argument("--timeline", type=Path, required=True)
-    ap.add_argument("--phone-a", default="s24", help="часть имени носимого телефона в треках другого дня (он же phone-a в наборе)")
+    ap.add_argument("--phone-a", default="phone", help="часть имени носимого телефона в треках другого дня (он же phone-a в наборе)")
     ap.add_argument("--windows", type=int, nargs="+", default=[3, 5, 8])
     ap.add_argument("--epochs", type=int, default=30)
     ap.add_argument("--pretrain", action="store_true", help="сравнить с предобучением кодировщика на неразмеченных рядах")
@@ -133,7 +133,7 @@ def main() -> None:
     rows = [json.loads(l) for l in Path(timeline["tracks_file"]).read_text(encoding="utf-8").splitlines() if l.strip()]
     t0, t1 = ts(timeline["from"]), ts(timeline["to"])
     test_x = day_seconds(rows, args.phone_a.lower(), t0, t1, tr)
-    # места разметки -> области: таблица классов из data/ (личная разметка квартиры), место без строки - само себе область
+    # места разметки -> области: таблица классов из data/ (личная разметка дома), место без строки - само себе область
     place_area = classes.get("place_class") or {}
     test_lab = np.full(len(test_x), -1)
     for st in timeline["stands"]:

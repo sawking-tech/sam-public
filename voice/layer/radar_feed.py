@@ -6,7 +6,7 @@
 («owner-loud»): радару идёт человек до дефиса, если он из списка людей; иначе - голос без человека
 («услышан голос у узла»). Радар сам решает вес по громкости (`presence_messages.proximity`).
 
-Флаг `SAM_VOICE_RADAR`, по умолчанию выключено. Решение (что слать) - чистая функция message_for.
+Флаг `SAM_VOICE_RADAR`, по умолчанию выключено; при выключенном радаре (`gateway/radar_switch.py`) подачи нет. Решение (что слать) - чистая функция message_for.
 """
 from __future__ import annotations
 
@@ -16,7 +16,7 @@ from gateway.env import parse_bool
 
 ENABLED_ENV = "SAM_VOICE_RADAR"
 DEVICE_ENV = "SAM_VOICE_RADAR_DEVICE"
-DEFAULT_DEVICE = "workpc"            # слух стенда стоит на рабочем ПК; ключ места устройства в data/home_layout.json
+DEFAULT_DEVICE = "workpc"            # имя устройства, на котором стоит слух; ключ места устройства в data/home_layout.json
 PEOPLE_ENV = "SAM_VOICE_RADAR_PEOPLE"
 SPEAKERS_ENV = "SAM_SPEAKER_NAMES"   # профили голоса: без списка людей людьми считаются все профили
 VARIANT_SEP = "-"                    # вариант голоса одного человека: owner-loud
@@ -56,8 +56,8 @@ def _people(env) -> frozenset[str]:
 
 def build(env=os.environ, client=None) -> RadarFeed:
     """client None - клиент радара шлюза по адресу из env; тесты подают свой."""
-    from gateway import radar_client
+    from gateway import radar_client, radar_switch
     people = _people(env)
     raw = (env.get(ENABLED_ENV) or "").strip()
-    enabled = parse_bool(ENABLED_ENV, raw) if raw else False
+    enabled = radar_switch.enabled(env) and (parse_bool(ENABLED_ENV, raw) if raw else False)
     return RadarFeed(client or radar_client.build(env), enabled, env.get(DEVICE_ENV) or DEFAULT_DEVICE, people)

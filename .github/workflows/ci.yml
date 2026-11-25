@@ -1,0 +1,108 @@
+name: CI
+
+# Тесты и проверки на каждый pull request и push в main. Правка только документации - README, docs/, скиллы,
+# LICENSE - не гоняет pytest: job остаётся зелёным за минуту, обязательные проверки выполнены, и такой PR
+# не ждёт пяти минут тестов. Путь, которого нет в списке, считается кодом: новая папка проверяется, пока
+# кто-нибудь не скажет обратное.
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  PYTHON_VERSION: "3.12"
+  CI: "1"                     # tests/test_monitor_modules.py без node в CI падает, а не пропускается
+
+jobs:
+  # Что правка задела: документацию или код. Ни один тяжёлый шаг не несёт своего `if:` на самом job:
+  # пропущенный job не пишет check run, и обязательная проверка висит вечно. Гейт стоит на шагах.
+  scope:
+    name: Что правит PR
+    runs-on: ubuntu-latest
+    outputs:
+      code: ${{ steps.look.outputs.code }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - id: look
+        run: |
+          base="${{ github.event.pull_request.base.sha || github.event.before }}"
+          if [ -z "$base" ] || [ "$base" = "0000000000000000000000000000000000000000" ] || ! git cat-file -e "$base" 2>/dev/null; then
+            echo "code=true" >> "$GITHUB_OUTPUT"
+            echo "Не с чем сравнивать: проверки идут все."
+            exit 0
+          fi
+          changed=$(git diff --name-only "$base" HEAD)
+          echo "Изменено:"; echo "$changed"
+          code=$(echo "$changed" | grep -vE '^(docs/|\.claude/|[^/]*\.md$|LICENSE$|\.gitignore$)' || true)
+          if [ -n "$code" ]; then
+            echo "code=true" >> "$GITHUB_OUTPUT"
+            echo "Правка в коде, проверки идут все:"; echo "$code"
+          else
+            echo "code=false" >> "$GITHUB_OUTPUT"
+            echo "Только документация: тесты пропускаются."
+          fi
+
+  tests:
+    name: Тесты
+    needs: scope
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Нечего проверять
+        if: needs.scope.outputs.code == 'false'
+        run: echo "Правка только в документации, шаги ниже пропущены."
+
+      - uses: actions/checkout@v4
+        if: needs.scope.outputs.code == 'true'
+
+      - uses: actions/setup-python@v5
+        if: needs.scope.outputs.code == 'true'
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+          cache-dependency-path: |
+            gateway/requirements.txt
+            requirements-dev.txt
+
+      - uses: actions/setup-node@v4
+        if: needs.scope.outputs.code == 'true'
+        with:
+          node-version: "22"
+
+      # Голосовой слой тесты подменяют на границе устройств (sounddevice, livekit), но `import sounddevice`
+      # и `from scipy.signal import ...` проходят на импорте: без PortAudio тесты не соберутся.
+      # Сам звук на CI не нужен - ни карты, ни модели Whisper: их подменяют фикстуры.
+      - name: Системные зависимости звука
+        if: needs.scope.outputs.code == 'true'
+        run: sudo apt-get update && sudo apt-get install -y libportaudio2
+
+      - name: Зависимости
+        if: needs.scope.outputs.code == 'true'
+        run: pip install -r requirements-dev.txt
+
+      - name: Тесты
+        if: needs.scope.outputs.code == 'true'
+        run: python -m pytest -q -m "not integration and not quality and not hardware"
+
+      # Модули монитора: node --test внутри pytest, но отдельным шагом видно, что node был доступен.
+      - name: Проверить, что node-тесты действительно шли
+        if: needs.scope.outputs.code == 'true'
+        run: python -m pytest -q tests/test_monitor_modules.py -rs
+
+  docs:
+    name: Ссылки в документации
+    needs: scope
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      # Битая ссылка в доках - ошибка PR и на правке доков тоже. Внутренние ссылки проверяются файлом,
+      # внешние не трогаем: сеть на CI не наша забота.
+      - name: Файлы, на которые ссылаются README и docs, существуют
+        run: python scripts/check_docs_links.py

@@ -47,7 +47,7 @@ import re
 import shutil
 import subprocess
 from dataclasses import dataclass
-from pathlib import Path
+from pathlib import Path, PureWindowsPath
 from typing import Callable, Protocol
 from ..env import env_int
 from ..proc_tree import NEW_GROUP, kill_tree
@@ -312,7 +312,11 @@ def resolve_workdir(workdir, roots: list[Path]) -> tuple[Path | None, str]:
     if not text:
         return roots[0], ""
     raw = Path(text).expanduser()
-    candidates = [raw] if raw.is_absolute() else [root / raw for root in roots]
+    # Абсолютность - и по Windows: `C:/Windows` на Linux не абсолютный для Path, и путь стал бы
+    # `корень/C:/Windows`, то есть «папки нет» вместо «вне разрешённых». Модель называет путь тем же
+    # на обеих системах, и ответ должен быть тот же.
+    absolute = raw.is_absolute() or PureWindowsPath(text).is_absolute()
+    candidates = [raw] if absolute else [root / raw for root in roots]
     for cand in candidates:
         path = cand.resolve()
         if any(path == root or path.is_relative_to(root) for root in roots):

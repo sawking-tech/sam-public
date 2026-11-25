@@ -13,7 +13,7 @@ import pytest
 from voice.layer import hearing
 from voice.layer.bus import BARGE_FLAG, HEARING_FLAG, MUTE_FLAG, SAY_OUT, SPEAKING_FLAG, VOICE_IN
 
-# Своя реплика из колонок (значения эха и стоп-слов проверены вживую 8 окт)
+# Своя реплика из колонок (значения эха и стоп-слов проверены вживую)
 SAID = "Семафор пропускает десять запросов, остальные ждут."
 LOUD = hearing.SILENCE_RMS * 3
 

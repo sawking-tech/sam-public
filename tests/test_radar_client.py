@@ -9,6 +9,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from gateway import radar_client as rc
+from gateway import radar_switch
 from gateway import scanning
 from radar import presence_api
 from radar import presence_sam_api as api
@@ -23,9 +24,9 @@ def _client(post, now, url="http://radar:1/", get=None):
 
 def _sends_the_message_with_its_fields():
     sent = []
-    _client(lambda url, payload: sent.append((url, payload)), [0.0]).note_message("voice", "s24", "resident-a", 0.4)
+    _client(lambda url, payload: sent.append((url, payload)), [0.0]).note_message("voice", "alpha", "resident-a", 0.4)
     assert sent == [("http://radar:1/sam/tools/note",
-                     {"channel": "voice", "device": "s24", "who": "resident-a", "level": 0.4, "place": None})]
+                     {"channel": "voice", "device": "alpha", "who": "resident-a", "level": 0.4, "place": None})]
 
 
 def _failure_does_not_raise_and_backs_off():
@@ -51,9 +52,11 @@ def _empty_url_is_off():
 
 
 def _url_from_env_with_default():
-    assert rc.build({}).base_url == rc.DEFAULT_URL
-    assert rc.build({rc.URL_ENV: "http://x:9"}).base_url == "http://x:9"
-    assert not rc.build({rc.URL_ENV: ""}).enabled
+    on = {radar_switch.ENV: "1"}
+    assert rc.build(on).base_url == rc.DEFAULT_URL
+    assert rc.build({**on, rc.URL_ENV: "http://x:9"}).base_url == "http://x:9"
+    assert not rc.build({**on, rc.URL_ENV: ""}).enabled
+    assert not rc.build({rc.URL_ENV: "http://x:9"}).enabled       # выключенный флагом радар: адрес не важен
 
 
 def _read_failure_is_none():
@@ -101,8 +104,8 @@ def test_chat_evidence_and_scanning_read_go_through_the_radar_functions():
     seen = []
     hub.note_message = lambda *a, **kw: seen.append((a, kw)) or True
     client = _wired(hub)
-    client.note_message("chat", "s24", "second")
-    assert seen == [(("chat", "s24", "second", None), {"place": None})]
+    client.note_message("chat", "alpha", "second")
+    assert seen == [(("chat", "alpha", "second", None), {"place": None})]
     people, names, place_words = scanning.read_radar(client)
     assert people == [] and names == {"first": "Первая", "second": "Вторая"}
     assert "диван в зале" in place_words and "зал" in place_words

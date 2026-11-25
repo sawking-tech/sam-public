@@ -2,7 +2,7 @@
 # SAM на Linux и macOS: базы в Docker, агрегатор MCP, шлюз. Вывод - logs/<компонент>.log, повторный запуск перезапускает.
 #   ./start_sam.sh         поднять
 #   ./start_sam.sh --stop  остановить
-# PYTHON - интерпретатор, GATEWAY_HOST, GATEWAY_PORT и MCP_PORT - адрес и порты. Голос и радар запускаются отдельно (README).
+# PYTHON - интерпретатор, GATEWAY_HOST, GATEWAY_PORT и MCP_PORT - адрес и порты. Голос запускается отдельно (README).
 set -euo pipefail
 cd "$(dirname "$0")"
 

@@ -1,7 +1,14 @@
 """Силуэты людей точками для призраков радара (SAM-105): рост, плечи, грудь у женской фигуры, позы. Все сценарии figure.js одним запуском node."""
-import pytest
+from pathlib import Path
 
+import pytest
+from fastapi.testclient import TestClient
+
+from radar import presence_api
 from tests.fakes_presence import run_node_scenarios
+from tests.test_presence_where import TELL_LAYOUT, hub_at
+
+PAGE = Path(__file__).resolve().parents[1] / "radar" / "static" / "presence.html"
 
 LIMIT = 250
 STAND_VARIANTS = ["cool", "down", "crossed", "hips", "behind", "phone"]
@@ -38,6 +45,9 @@ SCENARIOS = {
     "lie_centres": "['side', 'back'].map(v => { const p = f.figurePoints('female', 'lie', 500, v); return [0, 2].map(i => (ext(p, i)[0] + ext(p, i)[1]) / 2); })",
     "hug": "['side', 'hug', 'hugR'].map(v => ext(f.figurePoints('male', 'lie', 4000, v), 2))",
     # фаллос: окно перед бёдрами по центру стоя и сидя, головка относительно корня, лёжа - число точек и край по оси «вбок»
+    "joke_off": ("{ const plain = f.figurePoints('male', 'stand', 900, 'side', {}); "
+                 "const off = f.figurePoints('male', 'stand', 900, 'side', {phallus: f.jokeState(false, () => 'erect')}); "
+                 "return [JSON.stringify(plain) === JSON.stringify(off), f.jokeState(false, () => 'erect'), f.jokeState(true, () => 'erect')]; }"),
     "phallus_windows": ("{ const win = (g, pose, o) => f.figurePoints(g, pose, 900, 'side', o).filter(q => Math.abs(q[2]) < 0.04 && q[0] > 0.1 && q[0] < 0.22 && q[1] > 0.5 && q[1] < 0.8).length; "
                         "const sit = o => f.figurePoints('male', 'sit', 900, 'side', o).filter(q => Math.abs(q[2]) < 0.04 && q[0] > 0.12 && q[0] < 0.25 && q[1] > 0.3 && q[1] < 0.56).length; "
                         "return {stand: win('male', 'stand', {}), stand_with: win('male', 'stand', {phallus: true}), woman: win('female', 'stand', {phallus: true}), sit: sit({}), sit_with: sit({phallus: true})}; }"),
@@ -139,22 +149,22 @@ def test_pose_shapes_sit_lie_side_back_and_hug(js, check):
 
 def _standing(js):
     w = js["phallus_windows"]
-    assert w["stand"] == 0 and w["stand_with"] > 5 and w["woman"] == 0            # висит между ног, только у мужской фигуры
+    assert w["stand"] == 0 and w["stand_with"] > 5 and w["woman"] == 0            # только у мужской фигуры
     hang, erect = js["phallus_tips"]["hang"], js["phallus_tips"]["erect"]
-    assert hang[1][1] < hang[0] - 0.9 * 0.20                                       # висит: головка почти на длину ниже корня
-    assert erect[1][1] - erect[0] > 0.10 and 0.12 < erect[1][2] - 0.095 < 0.2      # поднятый: выше корня и вперёд
+    assert hang[1][1] < hang[0] - 0.9 * 0.20                                       # hang: конец почти на длину ниже корня
+    assert erect[1][1] - erect[0] > 0.10 and 0.12 < erect[1][2] - 0.095 < 0.2      # erect: выше корня и вперёд
 
 
 def _sitting(js):
     w = js["phallus_windows"]
     assert w["sit"] == 0 and w["sit_with"] > 5
     tip = js["phallus_tips"]["sit"][1]
-    assert tip[1] < 0.42 and tip[2] > 0.15                                         # свисает через край сиденья
+    assert tip[1] < 0.42 and tip[2] > 0.15                                         # через край сиденья
 
 
 def _lying(js):
     lie = js["phallus_lie"]
-    assert lie["hang"] == lie["plain"] and lie["erect"][0] > lie["plain"][0] and lie["erect"][1] > lie["plain"][1]   # лёжа только поднятый
+    assert lie["hang"] == lie["plain"] and lie["erect"][0] > lie["plain"][0] and lie["erect"][1] > lie["plain"][1]   # лёжа только erect
     assert lie["hug"][0] > lie["hug_plain"][0] and lie["hug_hang"] == lie["hug_plain"] and lie["hugR"][0] == lie["hug"][0]
     assert lie["woman"] == lie["woman_plain"]
 
@@ -162,3 +172,26 @@ def _lying(js):
 @pytest.mark.parametrize("check", [_standing, _sitting, _lying], ids=["stand", "sit", "lie"])
 def test_phallus_option_by_pose_and_state(js, check):
     check(js)
+
+
+def test_joke_off_leaves_the_plain_figure(js):
+    same, off, on = js["joke_off"]
+    assert same and off is False and on == "erect"
+
+
+def test_page_shows_the_joke_only_by_the_service_setting():
+    page = PAGE.read_text(encoding="utf-8")
+    assert "fetch('./sam/presence/figure')" in page and "let figureJoke = false" in page
+    assert "figureJoke && p.phallus" in page                                       # галка панели
+    assert page.count("jokeState(figureJoke && g.phallus") == 3                    # фигура, запас точек и ключ кадра
+    assert "g.phallus && phallusState" not in page
+
+
+@pytest.mark.parametrize("raw, expected", [(None, False), ("0", False), ("1", True)], ids=["unset", "zero", "one"])
+def test_service_tells_the_page_about_the_joke(raw, expected, monkeypatch):
+    monkeypatch.delenv(presence_api.FIGURE_JOKE_ENV, raising=False)
+    if raw is not None:
+        monkeypatch.setenv(presence_api.FIGURE_JOKE_ENV, raw)
+    client = TestClient(presence_api.create_app(hub_at(TELL_LAYOUT)))
+    assert client.get("/sam/presence/figure").json() == {"joke": expected}
+

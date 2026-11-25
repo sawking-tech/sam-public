@@ -19,7 +19,7 @@
 
 - **Один файл** `config/features.json` на весь стенд: у каждого флага одно значение, меняется в одном месте.
   Схема - как в DNSK: `enabled`, `effect` (`enables` или `disables` - аварийный выключатель говорит прямо),
-  `environments` (стенды: `workpc`, `aspire` по `SAM_STAND`), `tags`, `description`, `owner`, `expiresAt`,
+  `environments` (стенды по `SAM_STAND`), `tags`, `description`, `owner`, `expiresAt`,
   `ticket` (`SAM-NNN`), `pinned`; плюс `requires` - от каких фич зависит.
 - **Слои**: файл → переменная окружения `SAM_FEATURE__<ключ>__ENABLED` → (внешнего хранилища пока нет). Каждое
   значение сообщает, какой слой его решил: `File`, `EnvironmentVariable`, `Default`, `Pinned`. `pinned` в файле

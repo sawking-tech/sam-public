@@ -68,7 +68,7 @@ def test_each_floor_kind_paints_its_base_and_pattern(js, kind):
     if kind == "planks":
         assert js["joints"]["planks"] < js["joints"]["parquet"] / 3                    # доски длиннее паркета: стыков меньше
     if kind == "checker":
-        assert [c for c, _ in js["checker"]] == ["#b9cde0", "#e8dec6", "#b9cde0"]      # голубой и бежевый вперемежку
+        assert [c for c, _ in js["checker"]] == ["#b9cde0", "#e8dec6", "#b9cde0"]      # два цвета вперемежку
         assert js["checker"][0][1] == pytest.approx(0.3 * 80 + 1)                      # квадрат размером с плитку
 
 

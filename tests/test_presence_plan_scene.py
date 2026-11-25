@@ -30,7 +30,7 @@ const pts = a => Array.from({{length: a.length / 3}}, (_, i) => [a[3*i], a[3*i+1
 const one = (title, size) => m.elementsFromLayout({{walls: [], objects: [{{id: 'o', title, kind: 'furniture', x: 0, z: 0, ...size, angle: 0}}]}})[0];
 const furniturePts = e => m.extrudePoints(e, m.STYLES.furniture);
 const surfaces = [{{ kind: 'furniture', shape: 'table', h: 0.75, rect: {{ cx: -0.41, cz: 0, w: 0.6, d: 1, a: 0 }} }},
-                  {{ kind: 'furniture', shape: 'sofa', h: 0.87, rect: {{ cx: 0.63, cz: 0, w: 1, d: 1, a: 0 }} }}];   // стол: край в 0,11 м к западу от (0, 0); диван: край в 0,13 м к востоку
+                  {{ kind: 'furniture', shape: 'sofa', h: 0.87, rect: {{ cx: 0.63, cz: 0, w: 1, d: 1, a: 0 }} }}];   // стол: край в 0,11 м по -x от (0, 0); диван: край в 0,13 м по +x
 const fit = aspect => cam.fitDistance({{dir: [0.05, 1, 0], bbox: {{minX: 0, minZ: 0, maxX: {PLAN_W}, maxZ: {PLAN_D}}}, fovDeg: {FOV_DEG}, aspect}});
 """
 
@@ -143,7 +143,7 @@ def test_person_support_height_and_pose_under_a_point(js):
     assert js["support"] == pytest.approx([0.54, 0.435, 0.425, 0], abs=1e-6)
     assert js["support_pose"][:4] == ["sit", "lie", None, None] and abs(js["support_pose"][4] - 0.165) < 1e-6
     chair, sofa, nowhere = js["swivel"]
-    assert abs(chair) < 0.1 and sofa is None and nowhere is None                  # ближайшая дверь на востоке
+    assert abs(chair) < 0.1 and sofa is None and nowhere is None                  # ближайшая дверь по +x
 
 
 def test_device_rests_on_the_nearest_surface_and_sticks_to_it(js):

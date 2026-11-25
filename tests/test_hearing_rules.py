@@ -218,6 +218,8 @@ TARGET_RMS = 3000
 ENV_SCRIPT = """
 import os, time
 from pathlib import Path
+from tests import fakes_sounddevice          # заглушка: у процесса свой импорт, conftest его не ставит
+fakes_sounddevice.install()
 from voice.layer import hearing, retention
 d = Path(os.environ["BUS"])
 for name, age_h in (("mic-1.wav", 3), ("mic-2.wav", 1), ("mic.wav", 0)):
@@ -258,13 +260,13 @@ def test_cli_lists_devices_or_recognises_a_file_and_exits(tmp_path, monkeypatch,
     import sys
     import wave
     loaded = []
-    monkeypatch.setattr(hearing.sd, "query_devices", lambda *a: "0 Микрофон (C922)")
+    monkeypatch.setattr(hearing.sd, "query_devices", lambda *a: "0 Микрофон (Webcam)")
     monkeypatch.setattr(hearing, "STT", lambda: loaded.append("stt") or SimpleNamespace(
         transcribe=lambda audio: f"услышала {len(audio)}"))
     monkeypatch.setattr(hearing, "Listener", lambda *a, **kw: pytest.fail("CLI не слушает микрофон"))
     monkeypatch.setattr(sys, "argv", ["hearing", "--list-devices"])
     hearing.main()
-    assert capsys.readouterr().out.strip() == "0 Микрофон (C922)" and loaded == []
+    assert capsys.readouterr().out.strip() == "0 Микрофон (Webcam)" and loaded == []
 
     path = tmp_path / "phrase.wav"
     with wave.open(str(path), "wb") as w:

@@ -6,7 +6,7 @@
 
 Команда компонента - SAM_RESTART_CMD_<ИМЯ>; по умолчанию на Windows - ключ start_sam.ps1 (вкладка компонента гаснет
 и открывается заново) или start_radar.ps1 для радара. На другой ОС без переменной перезапуск не настроен - одна
-строка об этом.
+строка об этом. Выключенного радара (gateway/radar_switch.py) среди компонентов нет: перезапуск отвечает, как на чужое имя.
 
 Шлюз перезапускает сам себя: ждёт конца идущих ходов (ответ модели уходит), затем выходит; вкладка стенда поднимает
 его через 3 с (scripts/sam_process.ps1). С SAM_RESTART_CMD_GATEWAY вместо выхода после ходов идёт эта команда
@@ -36,11 +36,12 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Awaitable, Callable, Mapping
 
+from . import radar_switch
 from .core_paths import REPO
 from .env import env_float
 from .proc_tree import NEW_GROUP
 
-GATEWAY, CORTEX, RADAR = "gateway", "cortex", "radar"
+GATEWAY, CORTEX, RADAR = "gateway", "cortex", radar_switch.COMPONENT
 CMD_ENV_PREFIX = "SAM_RESTART_CMD_"
 START_SCRIPT = REPO / "start_sam.ps1"
 RADAR_SCRIPT = REPO / "start_radar.ps1"
@@ -81,6 +82,11 @@ class Plan:
     reason: str = ""          # для REFUSED
 
 
+def names(environ: Mapping[str, str] = os.environ) -> tuple[str, ...]:
+    """Компоненты, которые можно перезапустить на этой машине: выключенного радара среди них нет."""
+    return NAMES if radar_switch.enabled(environ) else tuple(n for n in NAMES if n != RADAR)
+
+
 def cmd_env(name: str) -> str:
     return f"{CMD_ENV_PREFIX}{name.upper()}"
 
@@ -106,8 +112,9 @@ def cold_start_command(environ: Mapping[str, str], windows: bool) -> str:
 
 def plan(name: str, environ: Mapping[str, str], windows: bool) -> Plan:
     name = (name or "").strip().lower()
-    if name not in NAMES:
-        return Plan(REFUSED, name, reason=f"нет компонента {name!r}; есть: {', '.join(NAMES)}")
+    known = names(environ)
+    if name not in known:
+        return Plan(REFUSED, name, reason=f"нет компонента {name!r}; есть: {', '.join(known)}")
     if name == CORTEX:
         return Plan(CLOSE_CORTEX, name)
     command = (environ.get(cmd_env(name)) or "").strip()
@@ -162,7 +169,7 @@ async def _no_check(name: str) -> str | None:
 
 def restart_name(component: str) -> str | None:
     """Имя перезапуска для компонента надзора: имена общие; None - перезапуском не лечится (сжатие compress:*)."""
-    return component if component in NAMES else None
+    return component if component in names() else None
 
 
 class Restarter:

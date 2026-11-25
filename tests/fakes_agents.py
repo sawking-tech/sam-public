@@ -422,7 +422,7 @@ class _Body:
 
 # ──────────────── Планировщик workflow ────────────────
 
-TZ = timezone(timedelta(hours=6))   # Омск, как стенд
+TZ = timezone(timedelta(hours=6))   # часовой пояс фиксирован: тесты не зависят от машины
 T0 = datetime(2026, 10, 10, 2, 0, tzinfo=TZ)
 WORKFLOW_FILE = """
 name: demo

@@ -7,6 +7,7 @@ __pycache__/
 *.egg-info/
 dist/
 build/
+!radar/static/vendor/three/build/
 .venv/
 venv/
 node_modules/
@@ -50,7 +51,7 @@ data/presence_*.json
 data/disk_snapshots.jsonl
 data/presence_tracks/
 
-# Личное и состояние машины целиком (правило «Код» в CLAUDE.md): разметка квартиры, быт, проходки, данные прогонов.
+# Личное и состояние машины целиком (правило «Код» в CLAUDE.md): разметка дома, быт, проходки, данные прогонов.
 # Отслеживаемых файлов в data/ нет; частные правила выше оставлены как история
 data/
 

@@ -6,14 +6,16 @@
       "highlights": [
         "SAM edits her apps and other repositories through a coding agent without the key; only her own core still needs it.",
         "SAM hears from her supervisor when a part of her falls or the supervisor goes silent, and restarts the fallen part herself without asking.",
-        "Asked for a chart or a small page, SAM shows a working app on the first try and improves it afterwards."
+        "Asked for a chart or a small page, SAM shows a working app on the first try and improves it afterwards.",
+        "The presence radar is off by default: SAM_RADAR turns it on."
       ],
       "ru": {
         "headline": "",
         "highlights": [
           "SAM правит свои приложения и другие репозитории через агента кода без ключа; ключ нужен только для её ядра.",
           "SAM узнаёт от надзора, что её часть упала или надзор замолчал, и сама, без вопроса, перезапускает упавшее.",
-          "На просьбу о графике или небольшой странице SAM с первого раза показывает работающее приложение и улучшает его потом."
+          "На просьбу о графике или небольшой странице SAM с первого раза показывает работающее приложение и улучшает его потом.",
+          "Радар присутствия по умолчанию выключен: включается флагом SAM_RADAR."
         ]
       }
     },
@@ -69,7 +71,7 @@
         "A crashed part of SAM gets back up by itself, and the health page shows which part is down.",
         "SAM knows the skills from the skills folder and opens the right one when a task fits it.",
         "SAM tells the people at home apart by voice.",
-        "SAM keeps quiet when people talk to each other or to the cats, and answers when called by name.",
+        "SAM keeps quiet when people talk to each other or to their pets, and answers when called by name.",
         "SAM speaks as she or he to match the chosen voice, and holds a position instead of agreeing with everything.",
         "A fast model answers at once, and a slip is corrected a few seconds later in the same voice.",
         "Late at night SAM speaks up by itself and sends people to bed, waiting for a pause in the conversation.",
@@ -82,14 +84,14 @@
         "A spoken phrase gets the next free model slot ahead of background tasks.",
         "A worker result or a late-night nudge enters the conversation only once it has actually been heard.",
         "Every half hour SAM goes over what she heard and saves what matters to her memory, whichever model leads her.",
-        "The radar draws the apartment floor by room, shows the network coverage per band and the probability layers of a phone and of a person.",
+        "The radar draws the home floor by room, shows the network coverage per band and the probability layers of a phone and of a person.",
         "The radar keeps its switches and who was home across restarts, and no figure walks through a wall or jumps further than a step.",
         "The phone layer of the radar shows an arrow from the phone towards the router, where the signal gets warmer.",
         "The coverage map can show a field of arrows: where the signal grows and how steeply, so it is visible where the level tells places apart.",
         "The radar page rewinds: a slider over the recorded tracks shows the phone field as it was at that second, recomputed from the record.",
         "A person lives in the radar flow as a subject of their own: they follow their phone within arm's reach and keep standing while it is silent.",
         "The radar keeps a two-week history of where it placed each phone and person every second, with the probabilities, so SAM can ask where someone was on a given evening.",
-        "The radar sees the flat from above: a phone or a person may be on the sofa, the bed or a table, and the same floor zones carry the preferences for everyone.",
+        "The radar sees the home from above: a phone or a person may be on any surface of the furniture, and the same floor zones carry the preferences for everyone.",
         "SAM's agents work with the rights their creator gave them, ask their creator and report back, and write only to the agents they were introduced to, knowing who each one is.",
         "An agent SAM starts can start one helper of its own, and that helper cannot start any.",
         "Every agent works within a pool of steps it estimated itself, and asks for more with a reason when it runs short.",
@@ -111,7 +113,7 @@
           "Упавшая часть SAM поднимается сама, а страница здоровья показывает, какая часть лежит.",
           "SAM знает скиллы из папки скиллов и открывает нужный, когда задача под него подходит.",
           "SAM различает людей дома по голосу.",
-          "SAM молчит, когда люди говорят между собой или с котами, и отвечает на обращение по имени.",
+          "SAM молчит, когда люди говорят между собой или с питомцами, и отвечает на обращение по имени.",
           "SAM говорит в роде выбранного голоса и держит позицию, а не соглашается со всем.",
           "Быстрая модель отвечает сразу, а оговорку тем же голосом поправляют через несколько секунд.",
           "Поздней ночью SAM первой заговаривает и отправляет человека спать, дождавшись паузы в разговоре.",
@@ -124,14 +126,14 @@
           "Фраза голосом получает ближайшее свободное место у модели раньше фоновых задач.",
           "Итог фоновой задачи и ночное напоминание попадают в разговор, только когда прозвучали.",
           "Раз в полчаса SAM просматривает услышанное и сохраняет важное в память, какая бы модель её ни вела.",
-          "Радар рисует пол квартиры по комнатам, показывает покрытие сети по диапазонам и слои вероятности телефона и человека.",
+          "Радар рисует пол дома по комнатам, показывает покрытие сети по диапазонам и слои вероятности телефона и человека.",
           "Радар хранит переключатели и кто был дома между перезапусками, и никто не проходит сквозь стену и не прыгает дальше шага.",
           "Слой телефона на радаре показывает стрелку от телефона к роутеру, туда, где сигнал теплее.",
           "Карта покрытия умеет показывать поле стрелок: куда и как круто растёт сигнал, и видно, где уровень различает места.",
           "Страница радара перематывает время: ползунок по записи треков показывает поле телефона на ту секунду, пересчитанное из записи.",
           "Человек живёт в потоке радара своим субъектом: держится рядом со своим телефоном и стоит на месте, пока тот молчит.",
           "Радар две недели хранит, куда он ставил каждый телефон и человека каждую секунду, с вероятностями, и SAM может спросить, где кто был в тот вечер.",
-          "Радар видит квартиру сверху: телефон и человек могут быть на диване, кровати или столе, и те же зоны пола несут предпочтения для всех.",
+          "Радар видит дом сверху: телефон и человек могут быть на любой поверхности мебели, и те же зоны пола несут предпочтения для всех.",
           "Агенты SAM работают с правами, которые дал создатель, спрашивают его и отчитываются ему и пишут только тем агентам, с которыми их познакомили, зная, кто чем занят.",
           "Агент, которого запустила SAM, может запустить одного помощника, а тот - ни одного.",
           "Каждый агент работает в пуле шагов, который сам оценил, и просит ещё с причиной, когда не хватает.",

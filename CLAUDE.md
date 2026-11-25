@@ -3,7 +3,7 @@
 ## Язык
 - Общение: **русский**
 - Код: **английский**
-- **Экономь токены:** короткие ответы, без лишних объяснений, максимум параллельных tool calls. Не читать файлы повторно - архитектура актуальна в README.md, читать его один раз в начале задачи.
+- **Экономь токены:** короткие ответы, без лишних объяснений, максимум параллельных tool calls. Не читать файлы повторно - архитектура актуальна в README.md и `docs/`, читать их один раз в начале задачи.
 
 ## Сессионный контекст
 
@@ -11,8 +11,20 @@
 `.claude/hooks/load-context.sh` показывает его при старте. Внешняя память (MCP Memory и подобное) - по желанию, в репозиторий не входит.
 
 ## Документация
-- **README.md** - единственный актуальный документ по архитектуре
-- При любых изменениях архитектуры - обновлять README.md
+
+Три уровня, каждый отвечает на свой вопрос. Не дублировать между ними: факт живёт на одном уровне, остальные
+ссылаются.
+
+| Файл | Отвечает на | Что туда |
+|---|---|---|
+| `README.md` | что это за продукт и что он умеет | суть, таблица возможностей, быстрый старт, указатель на остальное |
+| `docs/features/*.md` | как устроен раздел | правила, пороги, переменные, файлы, открытые места |
+| `docs/adr/*.md` | почему сделано именно так | решение, отклонённые варианты, последствия |
+
+- Индекс - `docs/README.md`, разделы - `docs/features/README.md`.
+- Изменение поведения обновляет раздел в `docs/features/`, изменение решения - ADR; README трогается, только когда
+  меняется сам продукт или его возможности.
+- Внутренние ссылки проверяет `scripts/check_docs_links.py` (CI гоняет на каждом PR).
 
 ## Код
 
@@ -42,15 +54,14 @@ SAM (Smart Ambient Mate) - система мониторинга, реагиро
 атмосферу, выявляет, систематизирует и отлаживает процессы, прогнозирует потребности, опора в кризис, реагирует быстро и проактивно; сделана из модульной
 платформы ИИ-агента,
 которая чинит и дописывает себя. Первая цель - домашний ассистент с целями и приложениями своего дома (голос,
-память о людях, радар). Позиционирование - README.md, «Что такое SAM».
+память о людях, радар). Позиционирование - README.md, «Что умеет».
 Люди дома - в анкете монитора и личном слое `data/SAM.md` (вне git).
 
 ## Ключевые файлы
 
 ### Gateway (agent runtime)
-Рефакторинг SAM-40 в работе: из agent.py вынесены runner, agent_loop, worker,
-tools и repos с DI (коммиты `SAM-40` в git log); сам agent.py - 2586 строк
-(регистрация tools, их обёртки, сборка deps), цель задачи - меньше 500:
+Из agent.py вынесены runner, agent_loop, worker, tools и repos с DI; сам agent.py - 3645 строк
+(регистрация tools, их обёртки, сборка deps):
 
 | Файл | Назначение |
 |------|------------|
@@ -141,10 +152,11 @@ Mongo CRUD - DI для тестов с mongomock:
 | Файл | Назначение |
 |------|------------|
 | `gateway/static/monitor.html` | WebSocket монитор (300 events replay), вкладка «Душа» - правка характера SAM |
+| `gateway/radar_switch.py` | Выключатель радара `SAM_RADAR`, по умолчанию выключен: выключенный радар не виден модели и стенду, все места спрашивают здесь |
 | `radar/` | Радар присутствия отдельным приложением (SAM-198): `python -m radar.presence_service` (:8010, `start_radar.ps1`), функции для SAM - `radar/presence_sam_api.py` (`/sam/tools/*`), шлюз зовёт их через `gateway/radar_client.py` и модулей радара не импортирует, страница - `radar/static/` |
 | `gateway/soul_api.py` | REST души: `/sam/soul`, запись и откат с ключом привилегий или ключом команд |
 | `gateway/apps_api.py` | Страница «Приложения» `/apps` (встроенное приложение шлюза, SAM-204) и API стенда `/sam/apps`: список, настройки, старт, остановка, закрепление, удаление; docker - через `gateway/apps.py` |
-| `chat.py` | терминальный чат с gateway (`python chat.py --device workpc`), основа TUI-пульта SAM-24 |
+| `chat.py` | терминальный чат с gateway (`python chat.py --device mypc`), основа TUI-пульта SAM-24 |
 | `mcp/mcp_aggregator.py` | Агрегатор MCP серверов → один порт |
 | `mcp/windows_control_server.py` | Windows: run_command, powershell, screenshot, get_windows |
 | `mcp/client_agent.py` | Регистрация + heartbeat клиентского ПК |
@@ -153,13 +165,12 @@ Mongo CRUD - DI для тестов с mongomock:
 | `.env` | API ключи и переменные (не в git) |
 
 ### Тесты (tests/)
-Pytest + pytest-asyncio, mongomock для Mongo, FakeQdrant + FakeEmbedder
-для RAG. 1987 тестов, по умолчанию собирается 1980: маркеры `integration` и `quality` исключаются по
-умолчанию.
+Pytest + pytest-asyncio, mongomock для Mongo, FakeQdrant + FakeEmbedder для RAG, подменённый sounddevice.
+3819 тестов собирается по умолчанию; маркеры `integration`, `quality` и `hardware` исключены в CI.
 
-Покрыты unit-тестами: `agent_loop`, `worker`, `runner`, `rag`, `guard`,
-`compression`, `provider_transform`, `llm_client`, `session_lock`,
-`stt_dedup`, `mcp_client`, `tools/` (без своих тестов memory, catalog, forget_topic, self_tune, set_env), все 6 `repos/*`, `event_bus`.
+Покрыты unit-тестами: `agent_loop`, `worker`, `runner`, `rag`, `guard`, `compression`, `provider_transform`,
+`llm_client`, `session_lock`, `stt_dedup`, `mcp_client`, `tools/` (без своих тестов memory, catalog, forget_topic,
+self_tune, set_env), `repos/*`, `event_bus`. Список проверок есть в конце каждого раздела `docs/features/`.
 
 ## Автономный режим разработки
 

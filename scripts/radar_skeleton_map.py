@@ -10,7 +10,7 @@
 Сжатие: из профиля остаются концы и точки излома (Дуглас-Пекер с допуском на шум телефона); узел-стоянка с двумя рёбрами, через который уровень
 идёт без излома (разница наклонов до и после в пределах шума), убирается, рёбра склеиваются.
 
-Запуск: python scripts/radar_skeleton_map.py --data data/walks/nn --tag 2026-10-11 [--layout data/home_layout.json]
+Запуск: python scripts/radar_skeleton_map.py --data data/walks/nn --tag <дата> [--layout data/home_layout.json]
 Выход: data/walks/nn/graph-<диапазон>-<tag>.json (или -slow- без быстрой части) и строка сводки."""
 from __future__ import annotations
 

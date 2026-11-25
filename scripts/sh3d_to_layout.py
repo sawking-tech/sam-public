@@ -1,4 +1,4 @@
-"""План квартиры из .sh3d в файл планировки радара (SAM-105).
+"""План дома из .sh3d в файл планировки радара (SAM-105).
 
   python scripts/sh3d_to_layout.py "C:/Users/.../План.sh3d" --level "Уровень 0" --out data/home_layout.json
 
@@ -22,13 +22,13 @@ def main() -> int:
     ap.add_argument("sh3d", type=Path)
     ap.add_argument("--level", default=None, help="имя уровня в проекте; по умолчанию первый")
     ap.add_argument("--out", type=Path, default=Path(DEFAULT_OUT))
-    ap.add_argument("--router", default=None, help="где роутер в метрах планировки: X,Z,H (например 6.6,4.0,1.6)")
+    ap.add_argument("--router", default=None, help="где роутер в метрах планировки: X,Z,H (например 2.0,3.0,1.6)")
     ap.add_argument("--object", action="append", default=[],
                     help="предмет, которого нет в проекте, со слов человека: название=центрX,центрZ,ширина,глубина,высота[,угол]; рисуется пунктиром")
     ap.add_argument("--place", action="append", default=[],
-                    help="подпись места на плане: название=X,Z в метрах (кресло=10.4,1.0); можно несколько раз")
+                    help="подпись места на плане: название=X,Z в метрах (кресло=2.0,1.5); можно несколько раз")
     ap.add_argument("--room", action="append", default=[],
-                    help="комната: имя=X,Z,W,D в метрах (кабинет=7.34,3.19,4.57,2.61); если заданы, заменяют общую комнату «квартира»")
+                    help="комната: имя=X,Z,W,D в метрах (кухня=1.0,2.0,3.0,2.5); если заданы, заменяют общую комнату «квартира»")
     args = ap.parse_args()
     try:
         layout = read_sh3d(args.sh3d, args.level)

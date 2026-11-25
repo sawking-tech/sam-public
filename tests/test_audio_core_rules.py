@@ -18,7 +18,7 @@ from voice.layer.audio_core import BLOCK, OUT_BLOCK, RATE, AudioCore, WindDown
 from voice.layer.bus import HEARING_FLAG, MIC_EVENTS, SPEAKING_FLAG
 from voice.layer.mic_watch import MicWatch
 from tests.test_layer_audio_stream import bare_core, drain, speech
-from tests.test_layer_mic_watch import C922_FULL, SPEAKERS, _FakeSD, _Stream
+from tests.test_layer_mic_watch import WEBCAM_FULL, SPEAKERS, _FakeSD, _Stream
 from tests.fakes_core import patch_module_sleep
 
 OUT_RATE = audio_core.OUT_RATE
@@ -53,7 +53,7 @@ def sd_with_mic(monkeypatch):
     fake = _FakeSD()
     fake.mic = True
     monkeypatch.setattr(audio_core, "sd", fake)
-    monkeypatch.setattr(audio_core, "input_names", lambda: [C922_FULL])
+    monkeypatch.setattr(audio_core, "input_names", lambda: [WEBCAM_FULL])
     return fake
 
 
@@ -285,7 +285,7 @@ def test_lost_mic_reaches_the_lead_as_a_mic_tick(sd_with_mic, tmp_path, monkeypa
     core._mic_step(tmp_path)
     ticker.poll()
     [tick] = [json.loads(line) for line in out]
-    assert (tick["kind"], tick["status"]) == ("mic", "lost") and C922_FULL in tick["text"]
+    assert (tick["kind"], tick["status"]) == ("mic", "lost") and WEBCAM_FULL in tick["text"]
 
 
 @pytest.mark.parametrize("speaking", [True, False], ids=["sam-speaks", "silence"])
@@ -307,9 +307,9 @@ def test_lost_mic_is_reopened_only_between_lines(sd_with_mic, tmp_path, monkeypa
 # ─── выбор входа ──────────────────────────────────────────────────────────────
 
 @pytest.mark.parametrize("arg, env, device", [
-    (5, "C922", 5),                      # --device главнее
+    (5, "Webcam", 5),                      # --device главнее
     (None, "1", 1),                      # MIC_DEVICE индексом
-    (None, "c922", 1),                   # MIC_DEVICE частью имени, без регистра
+    (None, "webcam", 1),                 # MIC_DEVICE частью имени, без регистра
     (None, "Динамики", None),            # выход с таким именем - не вход: системный
     (None, "", None),
 ], ids=["arg", "env-index", "env-name", "env-not-an-input", "default"])
