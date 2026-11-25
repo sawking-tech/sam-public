@@ -1,7 +1,7 @@
 """Поверхность SAM вживую (SAM-204 «Поверхность»): монитор и страница приложений глазами человека.
 
 Запуск: pytest -m integration tests/integration/test_live_surface.py. Нужен работающий стенд (start_sam.ps1) и Chrome
-на машине; ход разговора идёт в настоящую основную модель. Требования - docs/features/shell-layout.md (монитор) и
+на машине; ход разговора идёт в настоящую основную модель. Требования - docs/features/shell.md (монитор) и
 docs/features/apps.md (приложения): проверяется то, что видит человек, а не числа реализации."""
 
 from __future__ import annotations

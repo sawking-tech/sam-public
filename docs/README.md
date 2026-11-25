@@ -36,7 +36,7 @@
 | Форматы вызова инструментов | [tool-formats](features/tool-formats.md) |
 | Расходы и трасса хода | [usage-cost](features/usage-cost.md), [trace](features/trace.md) |
 | Состав дома | [household](features/household.md) |
-| Каркас страниц | [shell](features/shell.md), [shell-layout](features/shell-layout.md) |
+| Каркас страниц | [shell](features/shell.md) |
 
 ## API
 
