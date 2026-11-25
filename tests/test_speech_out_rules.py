@@ -1,7 +1,11 @@
 """Озвучка реплик (voice/layer/say_out.py) целиком: serve читает say-out.jsonl, Speaker синтезирует и играет.
 Перебивание стоп-словом и громкостью, interrupt, отклик back, ожидание тишины, устаревший ответ, хвост speaking,
 остаток в resume.txt и «продолжай». Настоящие serve, Speaker, Synthesis и конвейер звука; подменены движок синтеза
-(tts_client.stream) и ядро звука (колонки: куски записываются, звучание мгновенное или держится тестом)."""
+(tts_client.stream) и ядро звука (колонки: куски записываются, звучание мгновенное или держится тестом).
+
+Цепочка воспроизведения идёт через soxr и pedalboard - библиотеки звука, которых нет в CI: файл помечен
+`hardware`, на машине стенда идёт обычным прогоном.
+"""
 from __future__ import annotations
 
 import json
@@ -15,6 +19,8 @@ import pytest
 
 from voice.layer import say_out
 from voice.layer.bus import BARGE_FLAG, HEARING_FLAG, SAID, SAY_OUT, SPEAKING_FLAG, VOICE_IN
+
+pytestmark = pytest.mark.hardware
 
 ENGINE_RATE = 24_000
 CHUNK = np.full(ENGINE_RATE // 5, 8_000, np.int16)        # 0,2 с звука движка на отрезок

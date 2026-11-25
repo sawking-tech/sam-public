@@ -78,7 +78,8 @@ async def test_stand_silence_workflow_alarms_once_through_the_real_gate_command(
     await s.run_once(flow, ctx, store.get(flow.name).get("gate"))
     assert len(calls) == 1
     src, text, session = calls[0]
-    assert src == wf.source("stand-silence", "alarm") and "надзор стенда молчит" in text and "8010/health" in text
+    assert src == wf.source("stand-silence", "alarm") and "надзор стенда молчит" in text
+    assert "8000/health" in text and "8010/health" not in text        # радар по умолчанию выключен, его в списке нет
     assert "mcp_call" in text                        # проверка с ПК стенда, не из песочницы
     await s.run_once(flow, ctx, store.get(flow.name).get("gate"))
     assert len(calls) == 1

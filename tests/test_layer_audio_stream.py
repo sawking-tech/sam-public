@@ -1,6 +1,7 @@
 """Проверка потокового звука (audio_stream) и договаривания после перебивания (audio_core.WindDown)
 
-SAM-09.
+SAM-09. Цепочка воспроизведения целиком: пересчёт частоты (soxr) и темпа (pedalboard) - библиотеки
+звука, которых нет в CI. На машине стенда файл идёт обычным прогоном, CI его пропускает маркером.
 """
 
 from __future__ import annotations
@@ -9,9 +10,12 @@ import threading
 from collections import deque
 
 import numpy as np
+import pytest
 
 from voice.layer.audio_core import BLOCK, FRAME, RATE, AudioCore, WindDown
 from voice.layer.audio_stream import Pipeline, Resampler, Tempo, to_int16
+
+pytestmark = pytest.mark.hardware
 
 ENGINE_RATE = 24_000     # частота CosyVoice
 CHUNKS_SECS = (0.84, 2.0, 3.0)  # куски, как их отдаёт CosyVoice (cosy.log 8 окт)
@@ -19,7 +23,7 @@ SPEED = 0.94             # темп из session.json
 
 WORD_SECS = 0.30         # «слово» в синтетической речи
 GAP_SECS = 0.10          # пауза между словами (короче 80 мс - смычка, не пауза)
-MARK_SECS = 0.30         # пауза на запятой (у Кэма 300-570 мс)
+MARK_SECS = 0.30         # пауза на запятой (у синтеза 300-570 мс)
 LEVEL = 0.4              # громкость к концу трёх слов договаривания
 KEEP_SECS, FADE_SECS, EXTRA_SECS = 1.1, 0.4, 3.0
 

@@ -1,4 +1,5 @@
-fastapi==0.115.0
+fastapi>=0.135.1,<1      # starlette 0.44+ нужен: tests/test_access.py строит TestClient(client=(host, port)),
+                        # раньше параметра не было; 0.135.1 - версия, на которой прогон зелёный
 uvicorn[standard]==0.32.0
 qwen-agent[mcp]>=0.0.10
 pymongo==4.9.2

@@ -16,8 +16,10 @@ from tests.test_apps_api import stand
 from tests.test_mcp_aggregator import agg  # noqa: F401  (фикстура)
 from tests.test_presence_where import TELL_LAYOUT, hub_at
 
+pytestmark = pytest.mark.usefixtures("radar_on")
+
 RADAR_TOOLS = ["where", "history", "layout", "tell", "devices", "furniture"]
-ENV = {"SAM_SERVER": "http://localhost:8123", "SAM_RADAR_URL": "http://127.0.0.1:8099"}
+ENV = {"SAM_RADAR": "1", "SAM_SERVER": "http://localhost:8123", "SAM_RADAR_URL": "http://127.0.0.1:8099"}
 RADAR_BASE = "http://127.0.0.1:8099"
 RADAR_SPEC = TestClient(presence_api.create_app(hub_at(TELL_LAYOUT))).get("/openapi.json").json()
 
@@ -116,16 +118,19 @@ def test_loopback_address_follows_the_host_of_the_request(url, host, expected):
 def test_start_and_stop_commands_of_the_builtins():
     monitor, radar = builtin("monitor"), builtin("radar")
     assert builtin_apps.command(monitor, "start", {}, True)[1].startswith("Монитор - часть шлюза")
-    start, _ = builtin_apps.command(radar, "start", {}, True)
+    start, _ = builtin_apps.command(radar, "start", ENV, True)
     stop, _ = builtin_apps.command(radar, "stop", {}, True)
     assert str(restart.RADAR_SCRIPT) in start and not start.endswith("-Stop")
     assert str(restart.RADAR_SCRIPT) in stop and stop.endswith(builtin_apps.RADAR_STOP_SWITCH)
     assert builtin_apps.command(radar, "stop", {}, False) == ("", "Радар: остановка здесь не настроена: "
                                                                   "SAM_APPS_STOP_CMD_RADAR")
-    assert builtin_apps.command(radar, "stop", {"SAM_APPS_STOP_CMD_RADAR": "systemctl stop radar"}, False)[0] == \
+    on = {"SAM_RADAR": "1"}                        # выключенного радара среди компонентов нет (gateway/radar_switch.py)
+    assert builtin_apps.command(radar, "stop", {**on, "SAM_APPS_STOP_CMD_RADAR": "systemctl stop radar"}, False)[0] == \
         "systemctl stop radar"
-    assert builtin_apps.command(radar, "start", {"SAM_RESTART_CMD_RADAR": "systemctl restart radar"}, False)[0] == \
+    assert builtin_apps.command(radar, "start", {**on, "SAM_RESTART_CMD_RADAR": "systemctl restart radar"}, False)[0] == \
         "systemctl restart radar"
+    assert builtin_apps.command(radar, "start", {"SAM_RESTART_CMD_RADAR": "systemctl restart radar"}, False)[1] \
+        .startswith("нет компонента")
 
 
 @pytest.mark.asyncio
@@ -133,8 +138,8 @@ async def test_control_runs_the_command_and_says_failure_in_one_line():
     radar = builtin("radar")
     run = FakeRun()
     assert await builtin_apps.control(radar, "stop", run, {}, True) is None and run.calls[0].endswith("-Stop")
-    assert "вернула 1: boom" in await builtin_apps.control(radar, "start", FakeRun(1, "boom"), {}, True)
-    assert "не кончилась" in await builtin_apps.control(radar, "start", FakeRun(None), {}, True)
+    assert "вернула 1: boom" in await builtin_apps.control(radar, "start", FakeRun(1, "boom"), ENV, True)
+    assert "не кончилась" in await builtin_apps.control(radar, "start", FakeRun(None), ENV, True)
     nothing = FakeRun()
     for fixed in ("apps", "monitor"):
         assert "часть шлюза" in await builtin_apps.control(builtin(fixed), "stop", nothing, {}, True)
