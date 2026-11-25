@@ -1,20 +1,14 @@
 # SAM - архитектурные схемы
 
-> Главный документ архитектуры - README.md (так в CLAUDE.md). Здесь схемы потоков, жизненного цикла и
-> очередей со ссылками на код; решения и их причины - `docs/adr/`.
+Схемы потоков, очередки и жизненный цикл со ссылками на код. Устройство каждого блока - `features/stand.md`;
+решения и их причины - `docs/adr/`.
 
-SAM - система мониторинга, реагирования и ассистирования (README, «Что такое SAM»); здесь - платформа, из которой
-она сделана. Модели в ней - сменные носители, приложения - инструменты. Слоёв три. Ядро - шлюз, голос, основная модель, агенты,
-память, песочница, рантайм приложений, MCP; схемы ниже описывают его. Поверх ядра - цели и приложения дома:
-радар, монитор, доска тренажёра. Приложения на платформе живут в своих контейнерах и ходят к ядру только через
-разрешённые интерфейсы (ADR-021, `docs/features/apps.md`). Монитор пока - страница шлюза, перенос в приложение -
-план ADR-021.
+Ядро платформы - шлюз, голос, основная модель, агенты, память, песочница, рантайм приложений, MCP. Поверх ядра
+живут приложения: радар, монитор, доска тренажёра. Приложения идут в своих контейнерах и обращаются к ядру только
+через разрешённые интерфейсы (ADR-021, `features/apps.md`).
 
-**Последнее обновление:** 2026-10-10: стенд и основная модель (ADR-018, ADR-019, SAM-91) - раздел 0, сверен с
-кодом `gateway/main.py`, `gateway/main_model.py`, `voice/layer/*.py`, `start_sam.ps1`, `scripts/sam_lead.ps1`.
-Справка по блокам стенда - `docs/features/stand.md`. Референс устройства по зонам мозга - `docs/brain-map.md`.
-
----
+**Сверено с кодом** 25 ноября: точки входа `gateway/main.py`, `gateway/main_model.py`, `voice/layer/*.py`,
+`start_sam.ps1`, `scripts/sam_lead.ps1`, `gateway/dream.py`, `gateway/rag.py`.
 
 ## 0. Стенд и основная модель
 
@@ -262,13 +256,12 @@ flowchart TD
 ```
 
 **Принципы:**
-- ❗ Ничего не удаляется без архивирования (`_archive_messages` всегда первый шаг)
-- ⚡ Компрессия в фоне (`asyncio.create_task`, флаг `_compress_in_progress`)
-- 🧹 Дедуп ДО суммаризации, чтобы summary не закрепил повторы
-- 🧠 Промпт суммаризации различает вечные факты vs эпизод
-- 🔄 Recursive merge — даже многомесячная сессия не растёт линейно
-- 🔍 Полнотекстовый поиск с русским text-index — найти оригинал любого
-  удалённого сообщения
+- Ничего не удаляется без архивирования: `_archive_messages` - всегда первый шаг.
+- Компрессия идёт в фоне (`asyncio.create_task`, флаг `_compress_in_progress`).
+- Дедуп стоит до суммаризации, чтобы сводка не закрепила повторы.
+- Промпт суммаризации различает вечные факты и эпизод.
+- Слияние рекурсивное: даже многомесячная сессия не растёт линейно.
+- Полнотекстовый поиск с русским text-index находит оригинал любого удалённого сообщения.
 
 ---
 
@@ -289,7 +282,7 @@ flowchart LR
   RUN --> AG[главный агент]
 
   REST[REST API<br/>cancel-queue<br/>replace-queue] --> Q
-  EM[event_bus<br/>queue_*<br/>session_busy/idle] -.-> UI[TUI/monitor<br/>будущее]
+  EM[event_bus<br/>queue_*<br/>session_busy/idle] -.-> UI[монитор /monitor]
 ```
 
 ---
@@ -326,130 +319,85 @@ sequenceDiagram
 
 ---
 
-## Тесты (SAM-39)
+## Тесты
+
+`tests/` - pytest с `tests/conftest.py`: mongomock вместо Mongo, подменённый sounddevice, закрытые порты стенда,
+временные папки вместо `data/`. Маркеры в `pytest.ini`:
+
+| Команда | Что идёт |
+|---|---|
+| `pytest -q` | всё, кроме интеграционных и LLM-as-judge: 3798 тестов, около 5 минут |
+| `pytest -m integration` | с живой моделью и живым Docker |
+| `pytest -m quality` | LLM-as-judge, дорого по токенам |
+| `pytest -m hardware` | настоящая звуковая цепочка: такт и частота через soxr и pedalboard |
+
+CI (`.github/workflows/ci.yml`) гоняет `pytest -q -m "not integration and not quality and not hardware"` на каждый
+pull request; правка только документации тесты не запускает. Файл на каждый раздел: `tests/test_rag.py` к
+`memory-search.md`, `tests/test_guard.py` к `guard.md` и так далее - список проверок есть в конце каждого раздела.
+
+## Модель памяти SAM
+
+MongoDB - источник правды, Qdrant - оглавление к фактам. Поиск, запись и обслуживание - `features/memory-search.md`;
+коллекции целиком - `features/storage.md`.
 
 ```
-tests/
-├── conftest.py                     # mongomock, fake_llm_response, llm_config
-├── fixtures/sample_dialogues.py    # фиксированные диалоги для compression тестов
-├── test_stt_dedup.py               # 11 unit-кейсов
-├── test_session_lock.py            # 5 async unit-кейсов
-├── test_worker_session.py          # 6 unit-кейсов с mongomock
-├── test_compression_helpers.py     # 11 unit-кейсов (SKIP marker + archive + dedupe)
-├── integration/
-│   └── test_compression_pipeline.py  # @integration @slow, реальный LLM — skip по умолч.
-└── quality/
-    └── test_compression_quality.py   # @quality, LLM-as-judge с rubric — skip по умолч.
+MongoDB (`_memories`), один документ - один факт:
+  text           полный текст, источник правды
+  summary        короткое описание
+  questions      вопросы, на которые факт отвечает (HyDE)
+  tags           метки
+  created_at, updated_at, last_used_at, last_access_at, access_count, author
+  archived       мягкое удаление (find и поиск его пропускают)
+  related_ids, merged_from, split_from   задел под слияние фактов, пока не заполняются
+
+Qdrant (`context`), один факт - N векторов:
+  summary        один вектор на общий поиск
+  question       по вектору на вопрос: запрос «когда у Мурки день рождения» matчит вопрос, а не весь текст
+  payload        mongo_id, facet_type, facet_text, summary, tags, source_session, created_at, access_count
 ```
 
-Запуск:
-```
-pytest                                  # unit only (быстро)
-pytest -m integration                   # с реальным LM Studio
-pytest -m quality                       # LLM-as-judge
-```
-
-## Модель памяти SAM (актуально 2026-05-20, SAM-40 + SAM-45 каркас)
-
-**Архитектурный принцип:** MongoDB = source of truth. Qdrant = семантическое
-оглавление (TOC), кратковременная память. Никогда не путать.
+### Поиск
 
 ```
-MongoDB (`_memories`):
-  каждый документ = один факт / страница знания
-  _id            — ObjectId, стабильная ссылка
-  text           — полный авторитетный текст
-  summary        — короткое описание (optional)
-  questions      — список вопросов которые этот факт закрывает (optional)
-  tags           — метки
-  created_at, updated_at, last_used_at, last_access_at
-  author         — кто записал (session_id)
-  access_count   — сколько раз doc был возвращён (для librarian)
-  — SAM-45 каркас для эволюции через LLM-librarian —
-  archived: bool         — soft delete
-  archived_at            — когда soft-deleted
-  related_ids: list[str] — cross-references на другие mongo_id
-  merged_from: list[str] — audit когда merge сделан
-  split_from: str        — audit когда split сделан
-
-Qdrant (`context`):
-  каждый Mongo doc → N vector-точек (multi-facet indexing):
-  • 1 точка для summary (general lookup)
-  • N точек для каждого question (HyDE: матчит реальные запросы)
-  payload:
-    mongo_id       — ссылка на источник в Mongo
-    facet_type     — "summary" | "question"
-    facet_text     — конкретный текст этого facet
-    summary        — общий summary факта (для дисплея)
-    tags           — для filter
-    source_session, created_at
-    access_count   — сколько раз этот facet был в результате
-    last_used_at   — последнее использование
+1. embed запроса -> Qdrant: векторная ветка, порог 0,5
+2. Mongo: лексическая ветка, BM25 по основам слов
+3. слияние RRF (k=60); при равной сумме выше найденное по словам
+4. дедуп по mongo_id: один факт не приходит дважды
+5. текст всегда берётся из Mongo, а не из Qdrant
+6. access_count и last_used_at растут у выданного факта
 ```
 
-### Pipeline поиска
+MMR (разнообразие выдачи) в `RAGStore.search` есть параметром `mmr`, по умолчанию выключен, и поиск шлюза его не
+включает - это открытый дефект (`tests/test_rag.py`, xfail).
 
-```
-1. query → embed → Qdrant query (top-K*3 при MMR)
-2. фильтр по tags (Qdrant native FieldCondition)
-3. дедуп по mongo_id (best score per group) — иначе один факт N раз
-4. опциональный MMR re-rank для diversity
-5. memory_repo.get_by_id(mongo_id) → archived? пропустить
-6. text всегда из Mongo (source of truth)
-7. _increment_qdrant_access — какие facets полезны
-8. _touch_used → last_used_at в Mongo
-```
+### Qdrant можно пересоздать
 
-### Multi-facet — зачем
+Qdrant - не база. `RAGStore.reindex_all()` собирает оглавление из Mongo заново; потеря оглавления не теряет фактов.
+Отстать от Mongo оно может - ночное обслуживание подчищает.
 
-Один факт «Мурка — кот, родился 1 января, рыжий, любит молоко» в Mongo →
-в Qdrant N vector-точек:
-- summary: "Мурка — био кота"
-- question: "когда у Мурки день рождения?"
-- question: "какой Мурка по цвету?"
-- question: "что Мурка любит?"
+### Dream-job: что сделано
 
-Юзер: «когда у Мурки ДР?» → embed запроса матчит embed заглушки-вопроса
-→ находим mongo_id → возвращаем актуальный текст био из Mongo.
+`gateway/dream.py` раз в 10 минут проверяет ночное окно (`SAM_DREAM_FROM_H`-`SAM_DREAM_TO_H`, 3-6), интервал
+(`SAM_DREAM_INTERVAL_H`, 20 ч) и ворота простоя; один прогон на все процессы - блокировка в Mongo (`_dream`).
+Включается `SAM_DREAM=1`. Шаги:
 
-### Memory.md аналогия (с поправкой)
+| Шаг | Что делает |
+|---|---|
+| `maintenance_check` | отчёт: сколько фактов, сколько векторов, что устарело |
+| `prune_index` (`SAM_DREAM_APPLY=1`) | удаляет из Qdrant векторы, по которым не нашли ни разу за 90 дней; Mongo не трогает |
 
-Qdrant ≈ memory.md / TOC. **НЕ источник правды.** Может быть пересоздан
-полностью (`reindex_all`) — не страшно. Может отставать от Mongo —
-dream-job (SAM-22) подправит.
+Итог - событие `dream` в мониторе.
 
-### Эволюция через dream-job (SAM-22 + SAM-45)
+### Чего в dream-job нет
 
-LLM в dream-cycle → librarian. Конкретный алгоритм reorganization:
+Слияние похожих фактов, разделение разросшихся, перенос содержимого, машина переписывания summary и вопросов -
+план (SAM-45), не код. `access_count`, `related_ids`, `merged_from`, `split_from` в документе памяти заведены под
+него, но ничего их пока не заполняет, кроме `access_count` при выдаче факта в поиске.
 
-```
-1. Получить дерево всех documents в Mongo (включая archived для контекста)
-2. Выделить группы как они пересекаются:
-   - embedding similarity между docs
-   - shared tags
-   - cross-references (related_ids)
-   - co-occurrence в результатах поиска
-3. Наложить счётчик: какие данные чаще вызывались (access_count, last_used_at)
-4. Попарно брать documents и условно вызывать:
-   - merge(a, b)        — если очень похожи и часто матчатся вместе
-   - split(a, parts)    — если doc разросся, части матчат разные запросы
-   - move(content, from, to)  — переместить кусок в более релевантный
-   - copy(content, from, to)  — дублировать в более релевантный
-5. Регенерировать summary + questions для merged/split документов
-6. Обновить cross-references (related_ids) для связанных
-7. prune_dead_facets — почистить vector-нотисы которые никогда не матчили
-8. expand_facets — для популярных фактов сгенерить ещё ракурсов
-9. Audit log в Mongo: что merged/split/moved и когда
-```
+### Чего не делать
 
-Через месяцы работы knowledge base самоорганизуется под реальные паттерны
-использования. См. SAM-45.
-
-### Что НЕ трогать
-
-- ❌ Не делай авто-sync через MongoDB Change Streams — dream-job лучше
-- ❌ `update()` НЕ авто-reindex — snapshot память, reindex=True только
-  когда LLM решит переписать
-- ❌ Не доверяй summary из Qdrant при чтении — text всегда из Mongo
-- ❌ Не путай Qdrant с базой — это TOC
+- Не делать авто-sync через MongoDB Change Streams: dream-job с этим справляется без подписки на каждый write.
+- `update()` не переиндексирует: память - снимок, `reindex=True` только когда решение переписать принято явно.
+- Не брать summary из Qdrant при чтении: текст всегда из Mongo.
+- Не путать Qdrant с базой: это оглавление, его можно пересоздать.
 

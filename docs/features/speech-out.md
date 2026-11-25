@@ -88,3 +88,18 @@
 `tests/test_layer_say_out.py` (отрезки, источник в судьбе, поправка), `tests/test_layer_turns.py` (кто звучит,
 отзыв), `tests/test_layer_audio_stream.py` (поток без скачков на стыках), `tests/test_layer_voice_registry.py`
 (реестр, выбор движка), `tests/test_layer_lexicon.py`, `tests/test_layer_agenda.py`.
+
+## Прежний голосовой клиент
+
+`voice/voice_client.py` - клиент до голосового слоя (ADR-011), стенд его не запускает. Полудуплексный: слово «Сэм»
+на каждую реплику, конец фразы по тишине 1,5 с, эхоподавления нет, ответ синтезируется целиком. Остаётся для тех, у
+кого нет живого звука: пробует `--list-devices`, потом `--device N`.
+
+```bash
+pip install -r voice/requirements.txt
+python voice/voice_client.py --list-devices
+python voice/voice_client.py --device 1
+```
+
+Слова-пробуждения - «Сэм», «Сам», «sam». Переменные: `SAM_SERVER`, `DEVICE_NAME`, `VOICE_SESSION`, `WYOMING_PIPER`,
+`WHISPER_MODEL`, `DIARIZE_TOKEN`.
