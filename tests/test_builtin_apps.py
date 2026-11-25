@@ -22,7 +22,8 @@ RADAR_TOOLS = ["where", "history", "layout", "tell", "devices", "furniture"]
 # Команды заданы явно: по умолчанию остановка и перезапуск радара - скрипты стенда на Windows, а на Linux
 # их нет, и тест проверял бы powershell, а не радар. Что именно стоит в командах - дело теста restart.
 ENV = {"SAM_RADAR": "1", "SAM_SERVER": "http://localhost:8123", "SAM_RADAR_URL": "http://127.0.0.1:8099",
-       "SAM_APPS_STOP_CMD_RADAR": "radar-stop", "SAM_RESTART_CMD_RADAR": "radar-restart"}
+       "SAM_APPS_STOP_CMD_RADAR": "radar-stop", "SAM_RESTART_CMD_RADAR": "radar-restart",
+       "SAM_RESTART_CMD_MCP": "mcp-restart"}   # перезапуск агрегатора после снятия - тоже свой
 RADAR_BASE = "http://127.0.0.1:8099"
 RADAR_SPEC = TestClient(presence_api.create_app(hub_at(TELL_LAYOUT))).get("/openapi.json").json()
 
@@ -244,7 +245,7 @@ def test_radar_is_removed_with_its_slug_and_comes_back(tmp_path, monkeypatch, ag
     out = client.post("/sam/apps/radar/delete", json={"confirm": "radar"}).json()
     assert out["ok"] and "данные остались" in out["text"]
     assert run.calls[0] == ENV["SAM_APPS_STOP_CMD_RADAR"]            # остановка - своя команда, не powershell
-    assert str(restart.START_SCRIPT) in run.calls[1] and "-Mcp" in run.calls[1]   # агрегатор перечитывает метки
+    assert run.calls[1] == ENV["SAM_RESTART_CMD_MCP"]                # агрегатор перечитывает метки
     assert not (tmp_path / "radar" / apps.MANIFEST).exists() and builtin_apps.removed(tmp_path) == ["radar"]
     builtin_apps.ensure(tmp_path, shipped())                                    # снятое не ставится снова само
     assert builtin_apps.find(tmp_path, "radar") is None
