@@ -218,6 +218,8 @@ TARGET_RMS = 3000
 ENV_SCRIPT = """
 import os, time
 from pathlib import Path
+from tests import fakes_sounddevice          # заглушка: у процесса свой импорт, conftest его не ставит
+fakes_sounddevice.install()
 from voice.layer import hearing, retention
 d = Path(os.environ["BUS"])
 for name, age_h in (("mic-1.wav", 3), ("mic-2.wav", 1), ("mic.wav", 0)):

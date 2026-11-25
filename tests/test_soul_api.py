@@ -149,3 +149,15 @@ def test_real_gateway_lets_the_monitor_write_with_the_owner_secret_only(monkeypa
     assert gw.client.put("/sam/soul/TONE", json={"text": "Тон.", "expected_version": 1, "secret": SECRETS["command"]}).status_code == 200
     assert gw.client.put("/sam/soul/TONE", json={"text": "Тон 2.", "expected_version": 2}, headers=gw.privileged).status_code == 200
     assert [v["author"] for v in gw.client.get("/sam/soul/TONE/history").json()["versions"][:2]] == ["lead", "owner"]
+
+
+def test_every_router_route_reaches_the_gateway():
+    """Все маршруты души видны в приложении, а не только первый.
+
+    FastAPI 0.165 регистрирует из `include_router` один маршрут из четырёх - проверено на чистом окружении:
+    `{'/sam/soul', '/sam/soul/{name}', '/sam/soul/{name}/history', '/sam/soul/{name}/rollback'}` пропадает из
+    `app.routes` целиком, и монитор не может ни прочесть душу, ни откатить. Тест держит версию: пин в
+    `gateway/requirements.txt` меняют вместе с ним."""
+    from gateway import main
+    assert "/sam/soul" in {getattr(r, "path", "") for r in main.app.routes}
+    assert len(main.app.routes) > 70          # маршрутов десятки; один-два признак сломанного include_router

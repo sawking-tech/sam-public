@@ -31,7 +31,7 @@ import uuid
 import weakref
 from dataclasses import dataclass, replace
 from datetime import datetime
-from pathlib import Path
+from pathlib import Path, PureWindowsPath
 from typing import Callable
 
 from . import sandbox_clone, sandbox_export, sandbox_import, sandbox_net, sandbox_pkgs
@@ -160,8 +160,12 @@ def job_path(job_id: str, root: Path) -> Path | None:
 
 
 def inside(base: Path, name: str) -> Path | None:
-    """Путь файла внутри папки задачи; абсолютный путь и выход наружу через .. - None."""
-    if not name or Path(name).is_absolute() or Path(name).drive:
+    """Путь файла внутри папки задачи; абсолютный путь и выход наружу через .. - None.
+
+    Абсолютность проверяется и по Windows: `C:/Windows/x` на Linux не абсолютный путь для Path, и задача
+    получила бы его как относительный - папку `C:` внутри своей папки. Задача одна и та же на обеих системах,
+    и отказ тоже один."""
+    if not name or Path(name).is_absolute() or Path(name).drive or PureWindowsPath(name).drive:
         return None
     try:            # симлинк, который сделал код задачи (на Windows - чужая точка повторного разбора), не роняет
         base = base.resolve()

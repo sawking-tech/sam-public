@@ -21,7 +21,7 @@ import json
 import os
 import sys
 from dataclasses import dataclass
-from pathlib import Path
+from pathlib import Path, PureWindowsPath
 
 from .config import VOICE_REGISTRY
 
@@ -81,10 +81,16 @@ class Registry:
 
 
 def _path(value: str | None, base: Path) -> Path | None:
+    """Путь из реестра: абсолютный остаётся как есть, относительный считается от папки реестра.
+
+    Абсолютность проверяется и по Windows: реестр пишут на одной машине, читают на другой, и `C:/voice/x.wav`
+    на Linux не абсолютный для Path - он приклеился бы к папке реестра."""
     if not value:
         return None
     p = Path(value)
-    return p if p.is_absolute() else base / p
+    if p.is_absolute() or PureWindowsPath(value).is_absolute():
+        return p
+    return base / p
 
 
 def parse(data: dict, base: Path) -> Registry:
