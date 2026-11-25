@@ -34,7 +34,7 @@ from gateway.acp import config as acp_config  # noqa: E402
 from gateway.acp.agent import AcpAgent  # noqa: E402
 from gateway.acp.client import SamClient  # noqa: E402
 from gateway.acp.prompt import TEXT, TOOL, prompt_text  # noqa: E402
-from gateway import skill_memory, skills  # noqa: E402
+from gateway import radar_switch, skill_memory, skills  # noqa: E402
 
 TEMPLATE_DIR = ROOT / "gateway" / "acp" / "hermes"
 DEFAULT_HOME = ROOT / "data" / "acp" / "hermes-home"
@@ -135,6 +135,7 @@ async def probe(args: argparse.Namespace) -> int:
 
 def main() -> int:
     load_dotenv(ROOT / ".env")
+    os.environ[radar_switch.ENV] = "1"     # проба идёт на настоящем скилле радара и мок-инструменте radar_where
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--command", type=Path, default=DEFAULT_COMMAND)
     parser.add_argument("--home", type=Path, default=DEFAULT_HOME)

@@ -5,11 +5,11 @@ import pytest
 
 from tests.fakes_presence import run_node_scenarios
 
-ROW = {"name": "Redmi-Note-13", "iface": "phy1-ap0", "signal_db": -66.5, "at": {"place": "диван"},
+ROW = {"name": "Beta-Max-13", "iface": "phy1-ap0", "signal_db": -66.5, "at": {"place": "диван"},
        "field": [{"place": "диван", "p": 0.62, "x": 9.8, "z": 5.3}, {"place": "туалет", "p": 0.2, "x": 7.7, "z": 7.5}, {"place": "кухня", "p": 0.01, "x": None, "z": None}]}
 IDENT = {"confidence": 0.77, "evidence": [{"x": 9.8, "z": 5.3, "w": 0.77, "source": "messages", "note": "со слов"}, {"x": None, "z": None, "w": 0.3, "source": "wifi"},
                                            {"x": 1.0, "z": 1.0, "w": 0.01, "source": "wifi"}]}
-FLOW_DEVICE = {"name": "Redmi-Note-13", "iface": "phy0-ap0", "point": {"x": 9.8, "z": 5.3}, "places": [{"place": "диван", "p": 0.62}, {"place": "кухня", "p": 0.2}]}
+FLOW_DEVICE = {"name": "Beta-Max-13", "iface": "phy0-ap0", "point": {"x": 9.8, "z": 5.3}, "places": [{"place": "диван", "p": 0.62}, {"place": "кухня", "p": 0.2}]}
 GROWTH = [{"growth": {"peak": 0.012, "mass_near": 0.2, "area_m2": 12.5}}, {"growth": {"peak": 0.06, "mass_near": 0.62, "area_m2": 4.59}}, {}]
 SCENARIOS = {
     "phone_blobs": f"m.phoneBlobs({json.dumps(ROW)}).map(b => b.label)",
@@ -37,9 +37,9 @@ def test_probability_blobs_come_from_placed_phone_places_and_person_evidence(js)
 
 
 @pytest.mark.parametrize("scenario, text", [
-    ("phone", "Redmi, 5 ГГц, -66.5 дБ, выбрано: диван: диван 62%, туалет 20%"),
+    ("phone", "Beta, 5 ГГц, -66.5 дБ, выбрано: диван: диван 62%, туалет 20%"),
     ("person", "уверенность 77%; свидетельства: messages 77%"),
-    ("flow", "Redmi, 2,4 ГГц, точка (9.8; 5.3): диван 62%, кухня 20%"),
+    ("flow", "Beta, 2,4 ГГц, точка (9.8; 5.3): диван 62%, кухня 20%"),
     ("flow_none", ""),
     ("growth", ["  1 с: пик 1.2%, у точки 20.0%, площадь 90% 12.5 м2", "> 2 с: пик 6.0%, у точки 62.0%, площадь 90% 4.6 м2"]),
     ("growth_empty", ["> 1 с: нет данных"]),

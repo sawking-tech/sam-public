@@ -533,7 +533,7 @@ class PresenceHub:
         return (door["x"], door["z"]) if door else None
 
     def _seat_under(self, point: dict) -> dict:
-        """Подписанная точка у края дивана, кровати или кресла считается ими: человек садится или ложится на предмет, а не стоит рядом (метка легла у угла дивана кабинета)."""
+        """Подписанная точка у края дивана, кровати или кресла считается ими: человек садится или ложится на предмет, а не стоит рядом."""
         best = None
         for o in self.layout.get("objects") or []:
             pose = next((p for word, p in PLACE_OBJECT_POSES if word in (o.get("title") or "").lower()), None)
@@ -789,7 +789,7 @@ class PresenceHub:
         return zone
 
     def set_zone_lock(self, zone_id: str, locked: bool) -> bool:
-        """Замок на зоне: закрытую не стереть; решает человек (логические зоны - рабочие, домашняя, полки питомцев)."""
+        """Замок на зоне: закрытую не стереть; решает человек (логические зоны - рабочие, домашняя)."""
         zone = next((z for z in self.zones if z["id"] == zone_id), None)
         if zone is None:
             return False
@@ -865,10 +865,10 @@ class PresenceHub:
         return out
 
     def set_place(self, name: str, place: str) -> None:
-        """Где лежит устройство, как сказал человек («S24» - «стол рабочего ПК»); пустое место снимает привязку."""
+        """Где лежит устройство, как сказал человек («телефон» - «стол рабочего ПК»); пустое место снимает привязку."""
         key = name.strip().lower()
         if not key:
-            raise ValueError("нужна часть имени устройства, например S24 или Redmi")
+            raise ValueError("нужна часть имени устройства, как в списке устройств радара")
         if place.strip():
             self.devices.places[key] = place.strip()
         else:

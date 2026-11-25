@@ -5,25 +5,25 @@ import pytest
 
 from radar import presence_prefs as pp
 
-PREFS = {"default": {"кровать в спальне": 1.0, "туалет": 0.1, "кухня": 0.5}, "redmi": {"кресло": 1.0, "кровать в спальне": 2.0}}
+PREFS = {"default": {"кровать в спальне": 1.0, "туалет": 0.1, "кухня": 0.5}, "beta": {"кресло": 1.0, "кровать в спальне": 2.0}}
 
 
 @pytest.mark.parametrize("posterior, key, expected", [
-    ({"туалет": 0.5, "кровать в спальне": 0.5}, "s24@phy1-ap0", {"кровать в спальне": 10 / 11, "туалет": 1 / 11}),   # ровный уровень уступает предпочтению
-    ({"туалет": 0.5, "кровать в спальне": 0.5}, "redmi-note-13@phy1-ap0", {"кровать в спальне": 20 / 21, "туалет": 1 / 21}),   # личная таблица над общей
-    ({"балкон": 0.5, "кровать в спальне": 0.5}, "s24@phy1-ap0", {"балкон": 0.5, "кровать в спальне": 0.5}),   # неизвестное место нейтрально
-    ({"туалет": 0.95, "кровать в спальне": 0.05}, "s24@phy1-ap0", None),                                # сильный уровень побеждает
+    ({"туалет": 0.5, "кровать в спальне": 0.5}, "alpha@phy1-ap0", {"кровать в спальне": 10 / 11, "туалет": 1 / 11}),   # ровный уровень уступает предпочтению
+    ({"туалет": 0.5, "кровать в спальне": 0.5}, "beta-max-13@phy1-ap0", {"кровать в спальне": 20 / 21, "туалет": 1 / 21}),   # личная таблица над общей
+    ({"балкон": 0.5, "кровать в спальне": 0.5}, "alpha@phy1-ap0", {"балкон": 0.5, "кровать в спальне": 0.5}),   # неизвестное место нейтрально
+    ({"туалет": 0.95, "кровать в спальне": 0.05}, "alpha@phy1-ap0", None),                                # сильный уровень побеждает
     ({"туалет": 0.5, "кровать в спальне": 0.5}, None, {"туалет": 0.5, "кровать в спальне": 0.5}),            # без таблиц - как есть
 ])
 def test_device_place_weight_takes_personal_over_default_and_loses_to_a_strong_level(posterior, key, expected):
     """Личная таблица над общей, неизвестное место нейтрально, ровный уровень уступает предпочтению, сильный уровень побеждает, итог нормирован."""
-    result = pp.apply(posterior, PREFS if key else {}, key or "s24")
+    result = pp.apply(posterior, PREFS if key else {}, key or "alpha")
     assert sum(result.values()) == pytest.approx(1.0)
     if expected is None:
         assert result["туалет"] > 0.6
     else:
         assert result == pytest.approx(expected)
-    assert pp.apply({}, PREFS, "s24") == {}
+    assert pp.apply({}, PREFS, "alpha") == {}
 
 
 # Названия предметов плана приходят из Sweet Home 3D с заглавной буквы, названия мест у отпечатков и привычек строчные: сравнение идёт через place_key.
@@ -76,11 +76,11 @@ def test_device_prefs_follow_the_owners_habit_slot():
     assert pp.slot_occupancy(habits, None, OWNER, NOON_AT).get(BEDROOM, 0.0) < 0.05          # днём кровать не любимое место
     table, bed = piece(TABLE, 0.0, 0.0), piece(BED, 5.0, 0.0)
     places = {KITCHEN: centre(table), BEDROOM: centre(bed)}
-    content = {pp.PrefsKey.DEFAULT: {KITCHEN: 0.5}, pp.PrefsKey.FIXED: {KITCHEN: 0.03}, "redmi": {BEDROOM: 2.0}, pp.PrefsKey.NOTE: "пояснение"}
+    content = {pp.PrefsKey.DEFAULT: {KITCHEN: 0.5}, pp.PrefsKey.FIXED: {KITCHEN: 0.03}, "beta": {BEDROOM: 2.0}, pp.PrefsKey.NOTE: "пояснение"}
     prefs = pp.DevicePrefs(content, sleeper_habits(), None, [table, bed], places, lambda key: OWNER)
-    night = prefs.table("redmi@phy1", SLEEP_AT.timestamp())
-    assert night[pp.PrefsKey.DEFAULT][KITCHEN] == 0.03 and night[pp.PrefsKey.DEFAULT][BEDROOM] == 1.0 and night["redmi"] == {BEDROOM: 2.0}
-    assert prefs.table("redmi@phy1", SLEEP_AT.timestamp()) is night                              # тот же слот: считается один раз
+    night = prefs.table("beta@phy1", SLEEP_AT.timestamp())
+    assert night[pp.PrefsKey.DEFAULT][KITCHEN] == 0.03 and night[pp.PrefsKey.DEFAULT][BEDROOM] == 1.0 and night["beta"] == {BEDROOM: 2.0}
+    assert prefs.table("beta@phy1", SLEEP_AT.timestamp()) is night                              # тот же слот: считается один раз
     assert pp.PrefsKey.NOTE not in night
     bare = pp.DevicePrefs(content, {}, None, [], {}, lambda key: None)
-    assert bare.table("s24", 0.0)[pp.PrefsKey.DEFAULT] == {KITCHEN: 0.5}
+    assert bare.table("alpha", 0.0)[pp.PrefsKey.DEFAULT] == {KITCHEN: 0.5}

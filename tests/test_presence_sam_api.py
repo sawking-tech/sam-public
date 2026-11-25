@@ -117,9 +117,9 @@ def test_note_takes_channel_evidence_but_not_words_and_is_hidden_from_the_model(
     seen = []
     hub.note_message = lambda *a, **kw: seen.append((a, kw)) or True
     client = TestClient(presence_api.create_app(hub, clock=NOW.timestamp))
-    got = client.post(f"/sam/tools/{api.NOTE}", json={"channel": "chat", "device": "s24", "who": "second"})
+    got = client.post(f"/sam/tools/{api.NOTE}", json={"channel": "chat", "device": "alpha", "who": "second"})
     assert (got.status_code, json.loads(got.text)) == (200, {"applied": True})
-    assert seen == [(("chat", "s24", "second", None), {"place": None})]
+    assert seen == [(("chat", "alpha", "second", None), {"place": None})]
     told = client.post(f"/sam/tools/{api.NOTE}", json={"channel": pa.TOLD, "who": "second", "place": "диван в зале"})
     assert (told.status_code, told.text) == (api.REJECTED, api.NOTE_TOLD_DETAIL) and len(seen) == 1
     assert api.NOTE not in {t["name"] for t in app_tools.from_openapi(client.get("/openapi.json").json())}

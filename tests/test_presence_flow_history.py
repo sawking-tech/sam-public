@@ -19,7 +19,7 @@ OWNER = "resident-a"
 PERSON_ID = f"person:{OWNER}|person"
 
 
-def subject(sid="abc", iface="phy1-ap0", name="S24-Test", x=1.0, z=2.0, places=(("кухня", 0.62), ("коридор", 0.2))):
+def subject(sid="abc", iface="phy1-ap0", name="Alpha-Test", x=1.0, z=2.0, places=(("кухня", 0.62), ("коридор", 0.2))):
     return {"id": sid, "iface": iface, "name": name, "point": {"cell": 3, "x": x, "z": z}, "places": [{"place": p, "p": q} for p, q in places]}
 
 

@@ -2,7 +2,7 @@
 
 
 Один источник для клиента синтеза, серверов Silero и CosyVoice и session.py: раньше
-образец Ксюши для CosyVoice искали по диску, образец Кэма был зашит в лаборатории.
+один образец для CosyVoice искали по диску, другой был зашит в лаборатории.
 Файл - data/voice/voices/registry.json (SAM_VOICE_REGISTRY переопределяет):
 
   {"defaults": {"silero": "eugene", "cosy": "cam"},

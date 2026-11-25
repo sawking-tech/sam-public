@@ -9,7 +9,7 @@ from radar import presence_seats as seats
 SOFA = {"title": "Диван", "kind": "furniture", "x": 4.0, "z": 1.0, "w": 2.0, "d": 0.9, "angle": 0.0}          # центр (5.0; 1.45), длинная сторона вдоль x
 BED = {"title": "Кровать", "kind": "furniture", "x": 0.0, "z": 0.0, "w": 1.6, "d": 2.0, "angle": 0.0}          # центр (0.8; 1.0), изголовье на -z, ноги на +z
 TUB = {"title": "Ванна (примерно)", "kind": "furniture", "x": 0.0, "z": 0.0, "w": 0.7, "d": 1.5, "angle": 0.0}
-TOILET = {"title": "Унитаз (примерно)", "kind": "furniture", "x": 0.0, "z": 0.0, "w": 0.4, "d": 0.65, "angle": 0.0}      # центр (0.2; 0.325), бачок на севере
+TOILET = {"title": "Унитаз (примерно)", "kind": "furniture", "x": 0.0, "z": 0.0, "w": 0.4, "d": 0.65, "angle": 0.0}      # центр (0.2; 0.325), бачок на -z
 CHAIR = {"title": "Стул вращающийся", "kind": "furniture", "x": 1.0, "z": 1.0, "w": 0.5, "d": 0.5, "angle": 0.0}
 ROOM = {"id": "r", "title": "кабинет", "x": 3.0, "z": 0.0, "w": 5.0, "d": 3.0}                 # диван SOFA в этой комнате
 P1, P2, P3, P4 = "p1", "p2", "p3", "p4"                                                    # нейтральные ключи людей
@@ -98,7 +98,7 @@ def test_person_off_furniture_or_walking_is_left_alone():
 
 
 def test_bed_pair_hugs_by_rhythm_and_never_with_a_third():
-    """Пара иногда сближается, обнимающий на стороне партнёра; hug_always - для настройки; с третьим никто не обнимается."""
+    """Двое на кровати иногда сближаются, обнимающий на стороне партнёра; hug_always - для настройки; с третьим никто не обнимается."""
     def settle(rows, rhythm, **kw):
         return _by_person(seats.settle(rows, [BED], now=NOW, order={P1: 0, P2: 1, P3: 2}, hugs={P1: P2}, rhythm=rhythm, **kw))
     pair = _rows(BED_AT, BED_AT)
@@ -122,12 +122,12 @@ def test_lone_person_lies_in_the_tub_head_to_the_door(door, face):
 
 
 def _toilet_face(obj, along_long=False):
-    return math.pi / 2 if along_long else 0.0                                                    # лицом на юг, ко входу
+    return math.pi / 2 if along_long else 0.0                                                    # лицом ко входу, вдоль +z
 
 
 @pytest.mark.parametrize("gender, rhythm, pose", [("female", NEVER, "sit"), ("male", ALWAYS, "sit"), ("male", NEVER, "stand")])
 def test_toilet_pose_by_gender_and_capacity_one(gender, rhythm, pose):
-    """Девочка сидит лицом ко входу, мальчик сидит, когда ритм выпал, иначе стоит перед чашей лицом к стене; двое - оба стоят."""
+    """Женская фигура сидит лицом ко входу, мужская сидит, когда ритм выпал, иначе стоит перед чашей лицом к стене; двое - оба стоят."""
     got = seats.settle(_rows(TOILET_AT), [TOILET], front=_toilet_face, now=NOW, genders={P1: gender}, rhythm=rhythm)[0]
     assert got["pose"] == pose
     if pose == "sit":

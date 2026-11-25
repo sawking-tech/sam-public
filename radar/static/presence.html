@@ -177,7 +177,7 @@ import { smoothTrail, spreadPasses } from './static/presence/trail.js';         
 import { labelKey, hiddenLabels, PRIORITY as LABEL_PRIO } from './static/presence/labels.js';           // дубли подписей прячутся
 import { transitionsBetween, flightFor, smoothAngle, slides, SLIDE_RATE, TURN_RATE } from './static/presence/transitions.js';      // какие смены состояния запускают рой
 import { fitDistance } from './static/presence/camera_fit.js';        // расстояние камеры, при котором весь план в кадре
-import { figurePoints, SEAT_Y, STAND_VARIANTS, STRIDE_VARIANTS } from './static/presence/figure.js';           // силуэты людей точками
+import { figurePoints, jokeState, SEAT_Y, STAND_VARIANTS, STRIDE_VARIANTS } from './static/presence/figure.js';           // силуэты людей точками
 
 // ── Ошибки страницы идут в лог сервиса: по ним видно, почему кадр замер ─────────────────────────────
 const reportClient = (kind, message, extra = '') => fetch('./sam/presence/client-log', { method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -187,7 +187,7 @@ window.addEventListener('unhandledrejection', e => reportClient('promise', e.rea
 
 // ── Настройки ───────────────────────────────────────────────────────────────
 const MAX_PEOPLE = 8;                 // слотов под людей и питомцев; больше в доме не ждём
-const PTS = 1024;                     // точек на слот (сервер шлёт 220 у человека и 80 у кота)
+const PTS = 1024;                     // точек на слот (сервер шлёт 220 у человека и 80 у питомца)
 const TRAIL_N = 40;                   // длина следа на слот
 const TRAIL_STEP_M = 0.06;            // новая точка следа, когда центр сдвинулся на столько
 const HEAT_RAMP = [[0, [40, 90, 230]], [0.6, [60, 200, 110]], [0.97, [255, 150, 40]], [1, [255, 130, 30]]];   // температура по доле посещаемости: синий - редко и остыло, зелёный - середина, оранжевый - только верхние 3% мест
@@ -214,7 +214,7 @@ const DEV_MAX = 16;                   // устройств на страниц�
 const DEV_NEAR_DB = -31, DEV_FAR_DB = -90;   // -31: телефон вплотную к роутеру; -90: граница ауры
 const LEFT_LABEL_MS = 10000;          // подпись «вышел из сети» висит столько после пропажи устройства
 const DEV_SMOOTH_RATE = 4;            // скорость, с которой метка устройства следует за сигналом, 1/с
-const GHOST_SLOTS = 3;                // слотов облака под призраков режима rssi: по одному на закреплённое устройство (в плане их три)
+const GHOST_SLOTS = 3;                // слотов облака под призраков режима rssi: по одному на закреплённое устройство
 const GHOST_FIRST = MAX_PEOPLE - GHOST_SLOTS;   // слоты людей - до него, призраки - с него
 const GLOW_K = 0.9;                   // яркость точки в свечении: ниже единицы, чтобы тесные точки не складывались в белое
 const GHOST_MIN_CONF = 0.08;          // слабее этого фигура не рисуется: при яркости 0,85 даже тень в 3% выглядела пришедшим человеком
@@ -238,7 +238,7 @@ const POSE_TEXT = { stand: 'стоит', sit: 'сидит', lie: 'лежит' };
 const GHOST_BEHIND_M = 0.5;           // призрак стоит за устройством (дальше от роутера): человек сидит у своего телефона, а не в коридоре
 const AURA_SMOOTH_RATE = 3;           // скорость, с которой аура следует за активностью, 1/с
 const POINT_PX = 70;                  // размер точки в пикселях на единичном расстоянии; делится на удаление до камеры
-// Ориентация: смотрим с востока на запад, как из кабинета: справа зал (север), слева кухня (юг), вверху спальня (запад)
+// Ориентация: камера стоит со стороны +x и смотрит к -x
 const CAM_PRESETS = {                 // ракурсы клавишами 1-3: положение камеры относительно центра сцены
   '1': { dir: [0.05, 1, 0], k: 1.2, fit: true },        // сверху: весь план в кадре, центр - середина плана
   '2': { dir: [1.0, 0.9, 0.15], k: 1.0 },
@@ -275,7 +275,7 @@ scene.fog = new THREE.FogExp2(0x04060b, 0.028);
 const SCENE_TOKENS = { 0x04060b: '--r-ink', 0x0a1224: '--deck', 0x7f93bd: '--haze', 0xffc66d: '--amber' };
 const DAY_INK = 0.42;            // во сколько раз темнеют светящиеся точки плана днём: голубое на белом - в чернила
 // серый неуверенного человека днём - к бумаге: тёмный --haze, смешанный с цветом человека, давал розовому бурый оттенок
-const DAY_GHOST_PAPER = 0.7;     // 0,5 при уверенности 35% оставлял розовый лиловым (скриншот 15 окт)
+const DAY_GHOST_PAPER = 0.7;     // 0,5 при уверенности 35% оставлял розовый лиловым
 const cssColor = tokenColor;
 const isDay = () => cssColor('--r-ink').getHSL({}).l > 0.5;
 function themeMaterial(m, day) {
@@ -348,7 +348,7 @@ const cloud = new THREE.Points(geo, new THREE.ShaderMaterial({
     varying vec3 vCol; varying float vA;
     void main() {
       // слот - атрибут, а массив по индексу из атрибута ANGLE на D3D разворачивает в огромные ветвления: компиляция
-      // шла 4,9 с при первом кадре (замер 15 окт). Цикл с постоянными границами индексирует массив счётчиком
+      // шла 4,9 с при первом кадре (замер). Цикл с постоянными границами индексирует массив счётчиком
       int s = int(aSlot + 0.5);
       float d = 0.0, tw = 0.0, alive = 0.0; vec3 col = vec3(0.0);
       for (int i = 0; i < ${MAX_PEOPLE}; i++) {
@@ -495,7 +495,7 @@ function renderDevicePanel(list) {
   const el = document.getElementById('devs'); if (!el) return;
   el.replaceChildren(...list.slice(0, 12).map(d => {
     const row = document.createElement('div'); row.className = d.present ? 'dev on' : 'dev';
-    const near = { near: 'рядом с роутером', mid: 'в квартире', far: 'далеко или за стеной' }[d.closeness];
+    const near = { near: 'рядом с роутером', mid: 'в доме', far: 'далеко или за стеной' }[d.closeness];
     const ago = d.present ? 'сейчас' : (d.seen_ago_s < 90 ? 'только что' : Math.round(d.seen_ago_s / 60) + ' мин назад');
     const where = (d.where || []).map(w => `${w.place} ${Math.round(w.p * 100)}%`).join(', ');          // места по уровню сигнала: что решил радар и насколько уверенно
     row.textContent = `${d.name || 'устройство ' + d.id.slice(0, 4)} - ${d.present ? near : 'был ' + near}, ${ago}${where ? ', по уровню: ' + where : ''}`;
@@ -503,14 +503,14 @@ function renderDevicePanel(list) {
   }));
 }
 // Призраки (режим rssi): по одному на человека из identities шлюза (кто где по свидетельствам разных каналов, presence_fuse). Силуэт точками
-// по полу человека из плана (figure.js): мальчик голубой, девочка розовая, голова, плечи, грудь, руки, ноги; поза по месту: сидит на сиденье,
+// по полу человека из плана (figure.js), цвет тоже из плана: голова, плечи, грудь, руки, ноги; поза по месту: сидит на сиденье,
 // лежит на матрасе, стоит на полу. Уверенность - цвет и резкость: чем выше, тем ярче цвет и чётче точки; низкая - серый и размытый.
 // Призрак не исчезает, пока у шлюза есть хоть один признак. Точки стоят на месте: дрожание на каждом кадре читалось миганием
 const ghosts = new Map();       // имя человека -> {slot, n, key, conf, cx, cz, pose, face, gender, color, label, text}
 // Люди дома приходят в плане (`layout.people` из data/, не из репозитория): имя, пол, цвет, рост и вес; страница знает только безымянного по умолчанию.
 const UNKNOWN_PERSON = { gender: 'male', get color() { return cssHex('--r-text'); } };   // кто-то ещё - цвет текста темы
 const GHOST_GREY = tokenColor('--haze');   // цвет при нулевой уверенности
-const PHALLUS_STATE_S = 300, PHALLUS_ERECT_EVERY = 10;   // раз в 5 минут решается, как он: из десяти решений одно «встал» (редко), и тогда стоит все 5 минут; остальные висит
+const PHALLUS_STATE_S = 300, PHALLUS_ERECT_EVERY = 10;   // раз в 5 минут выбирается состояние: одно из десяти решений - erect, остальные - hang
 const figureCache = new Map();
 function figureKey(gender, pose, variant, limit, phallus, body = {}) { return [gender, pose, variant, limit, phallus, body.height, body.weight].join('|'); }
 function figureOf(gender, pose, variant, limit = GHOST_LIMIT, phallus = false, body = {}) {      // body: {height, weight} конкретного человека
@@ -518,6 +518,8 @@ function figureOf(gender, pose, variant, limit = GHOST_LIMIT, phallus = false, b
   if (!figureCache.has(key)) figureCache.set(key, figurePoints(gender, pose, limit, variant, { phallus, height: body.height, weight: body.weight }));
   return figureCache.get(key);
 }
+let figureJoke = false, dbgPeopleArgs = null;    // шутка фигуры: значение приходит с сервиса радара, по умолчанию её нет; панель людей перестраивается по ответу
+fetch('./sam/presence/figure').then(r => r.json()).then(d => { figureJoke = !!d.joke; if (figureJoke && dbgPeopleArgs) dbgBuildPeople(...dbgPeopleArgs); }).catch(() => {});
 const phallusForced = new Set();     // кого панель отладки держит в erect принудительно (галка в разделе человека)
 function phallusState(g) {            // hang почти всегда, erect редко; у каждого свой ритм по имени
   if (phallusForced.has(g.person)) return 'erect';
@@ -564,10 +566,10 @@ function drawGhosts(dt) {
     const stand = STAND_VARIANTS[(Math.floor(Date.now() / 1000 / STAND_CHANGE_S) + [...g.name].reduce((a, ch) => a + ch.charCodeAt(0), 0)) % STAND_VARIANTS.length];
     const stepping = g.pose === 'stand' && g.walking;      // шаговая поза только пока сервер говорит «идёт»; у входа, в ванной, на месте - обычная стойка
     const variant = g.pose === 'lie' ? (g.hugSide ? (g.hugSide > 0 ? 'hug' : 'hugR') : turn % LIE_BACK_EVERY === 0 ? 'back' : 'side') : stepping ? STRIDE_VARIANTS[g.hops % 2] : g.pose === 'stand' ? stand : 'side';
-    const fig = figureOf(g.gender, g.pose, variant, GHOST_LIMIT, g.phallus && phallusState(g), g.body), pool = figureOf(g.gender, g.pose, variant, GHOST_POOL, g.phallus && phallusState(g), g.body), base = g.slot * PTS * 3, c = Math.cos(g.sf ?? g.face), s = Math.sin(g.sf ?? g.face), top = surfaceAt(planElements, g.cx, g.cz);
+    const fig = figureOf(g.gender, g.pose, variant, GHOST_LIMIT, jokeState(figureJoke && g.phallus, () => phallusState(g)), g.body), pool = figureOf(g.gender, g.pose, variant, GHOST_POOL, jokeState(figureJoke && g.phallus, () => phallusState(g)), g.body), base = g.slot * PTS * 3, c = Math.cos(g.sf ?? g.face), s = Math.sin(g.sf ?? g.face), top = surfaceAt(planElements, g.cx, g.cz);
     const lift = g.pose === 'sit' ? Math.max(0, top - SEAT_Y) : g.pose === 'lie' ? top : 0;   // сидит на сиденье, лежит на матрасе, стоит на полу
     if (!g.local) { g.local = fig.slice(); g.cycle = new Int32Array(PTS).fill(-1); }
-    g.figKey = figureKey(g.gender, g.pose, variant, GHOST_LIMIT, g.phallus && phallusState(g), g.body);
+    g.figKey = figureKey(g.gender, g.pose, variant, GHOST_LIMIT, jokeState(figureJoke && g.phallus, () => phallusState(g)), g.body);
     if (g.fig !== fig) {                                   // другая поза или вариант: точки не перекидываются разом (это был «фейерверк»), каждая сменит место на своём следующем цикле, пока невидима
       g.local = fig.slice();                              // цели всех точек - в новую позу разом: по одной (в свой цикл мерцания) давало «две модели» на время перехода
       g.mid = [0, 1, 2].map(a => fig.reduce((sum, q) => sum + q[a], 0) / fig.length); g.rad = Math.max(1e-3, ...fig.map(q => Math.hypot(q[0] - g.mid[0], q[1] - g.mid[1], q[2] - g.mid[2])));   // центр тела и его размах: от них темп точки
@@ -849,7 +851,7 @@ const WALK_DASH_M = 0.04, WALK_GAP_M = 0.06;   // пунктир пути: шт�
 const WALK_LINE_OPACITY = 0.14;          // линия пути поверх поля теплоты: еле заметна, не заслоняет его
 const WALK_PRINTS_SHOWN = false;      // цепочка бусин-следов отключена: путь рисуется пунктиром, теплота - полем
 const WALK_STEP_M = 0.1;               // расстояние между пятнами вдоль пути: гуще радиуса, пятна сливаются в сплошную дорожку
-const WALK_TAIL_STEPS = Number(new URLSearchParams(location.search).get('tail')) || 400;   // сколько последних пятен видно (400 по 0,1 м - около 40 м пути): длинная прогулка - 79 следов (43 м), с кухней в 56 от конца; ?tail=N меняет
+const WALK_TAIL_STEPS = Number(new URLSearchParams(location.search).get('tail')) || 400;   // сколько последних пятен видно (400 по 0,1 м - около 40 м пути): хватает на длинную прогулку по дому; ?tail=N меняет
 const WALK_PRINT_R_M = 0.12;           // радиус пятна: ширина дорожки около 25 см, мягкий край уходит в ноль
 const WALK_SIDE_M = 0;                 // дорожка по оси пути без раскачки влево-вправо: сплошная линия, не шаги
 const walkColor = () => cssHex('--haze');   // путь - вторичным цветом темы: не спорит с теплотой и людьми
@@ -967,6 +969,7 @@ function dbgBuildKnobs(knobs, values) {                 // группы с се�
 const dbgPeople = document.getElementById('dbgPeople');
 let personTimer = {};
 function dbgBuildPeople(people, placeKeys, overrides) {
+  dbgPeopleArgs = [people, placeKeys, overrides];
   dbgPeople.replaceChildren(...Object.entries(people).map(([id, p]) => {
     const row = document.createElement('div'), label = document.createElement('label'), out = document.createElement('output');
     const range = document.createElement('input'), place = document.createElement('select'), auto = document.createElement('button');
@@ -985,7 +988,7 @@ function dbgBuildPeople(people, placeKeys, overrides) {
     range.addEventListener('input', send); place.addEventListener('change', send);
     auto.addEventListener('click', () => { clearTimeout(personTimer[id]); out.textContent = 'авто'; place.value = ''; fetch('./sam/presence/person/' + encodeURIComponent(id), { method: 'DELETE' }); });
     label.append(p.name || id, out, range); row.append(label, place, auto);
-    if (p.phallus) {                                      // у кого эта часть тела рисуется: галка держит её поднятой, без ожидания смены по ритму
+    if (figureJoke && p.phallus) {                        // шутка включена на сервисе: галка держит состояние erect, без ожидания смены по ритму
       const force = document.createElement('input'), box = document.createElement('label');
       force.type = 'checkbox'; force.checked = phallusForced.has(id);
       force.addEventListener('change', () => { force.checked ? phallusForced.add(id) : phallusForced.delete(id); });
@@ -1399,13 +1402,13 @@ function frame() {
   }
 }
 // ── Демо: тур камеры для записи видео без рук ────────────────────────────────
-// ?demo=1: подлёт к каждому человеку по очереди и круг вокруг него вблизи, потом медленный круг над всей квартирой; панель отладки и подсказка скрыты, тур идёт по кольцу.
+// ?demo=1: подлёт к каждому человеку по очереди и круг вокруг него вблизи, потом медленный круг над всем планом; панель отладки и подсказка скрыты, тур идёт по кольцу.
 const DEMO = new URLSearchParams(location.search).get('demo') !== null;
 const DEMO_PERSON = { seconds: 9, distance: 3.2, turnsPerMin: 5 };       // у человека: 9 с, камера в 3,2 м, оборот за 12 с
-const DEMO_FLAT = { seconds: 24, distance: 11, turnsPerMin: 2 };         // над квартирой: 24 с, камера в 11 м, оборот за 30 с
+const DEMO_FLAT = { seconds: 24, distance: 11, turnsPerMin: 2 };         // над планом: 24 с, камера в 11 м, оборот за 30 с
 const DEMO_GLIDE_S = 2.5;                                                 // перелёт камеры к новой цели: сглаживание цели и расстояния
 let demoStartMs = 0, demoTarget = null, demoDistance = 0;
-function demoPlan(nowMs) {                                                // чей сейчас черёд: люди с местом по кругу, потом квартира
+function demoPlan(nowMs) {                                                // чей сейчас черёд: люди с местом по кругу, потом весь план
   const people = [...ghosts.values()].filter(g => g.conf > 0.05 && g.cx != null).sort((a, b) => a.slot - b.slot);
   const cycle = people.length * DEMO_PERSON.seconds + DEMO_FLAT.seconds, t = ((nowMs - demoStartMs) / 1000) % cycle;
   const k = Math.floor(t / DEMO_PERSON.seconds);

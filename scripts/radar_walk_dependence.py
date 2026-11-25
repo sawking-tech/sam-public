@@ -5,7 +5,7 @@
 Мотивы сверяются с отрезками проходки: попали ли пары в один и тот же переход (откуда-куда) или стоянку того же места.
 Корреляция приращений: секундные разности уровня телефона A и телефона B со сдвигом -MAX_LAG_S..MAX_LAG_S - связь двух диапазонов в одной руке.
 
-Запуск: python scripts/radar_walk_dependence.py --data data/walks/nn --tag 2026-10-11"""
+Запуск: python scripts/radar_walk_dependence.py --data data/walks/nn --tag <дата>"""
 from __future__ import annotations
 
 import argparse

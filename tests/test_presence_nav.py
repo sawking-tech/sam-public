@@ -117,7 +117,7 @@ def test_points_snapped_out_of_walls_and_furniture():
 SINK = furniture("Тумбы с раковиной", 4.0, 3.0, d=0.6)
 STOVE = furniture("Газовая плита", 4.3, 3.4, w=0.5, d=0.5, solid=True)
 TABLE = furniture("Стол", 4.3, 2.2, w=0.5, d=0.5, h=0.75, solid=True)
-TOILET = furniture("Унитаз", 2.8, 0.0, w=0.4, d=0.65, h=0.78)                      # бачок у северной стены z = 0
+TOILET = furniture("Унитаз", 2.8, 0.0, w=0.4, d=0.65, h=0.78)                      # бачок у стены z = 0
 SOUTH = math.pi / 2
 
 
@@ -131,11 +131,11 @@ def front(obj, **kwargs):
 
 
 @pytest.mark.parametrize("facing, expected, tol", [
-    (lambda: face([SINK], 4.5, 2.4), SOUTH, 0.01),                               # у тумб лицом к ним (они на юге)
-    (lambda: face([SINK], 1.0, 0.3), SOUTH, 0.1),                                # у северной наружной стены - лицом в комнату
+    (lambda: face([SINK], 4.5, 2.4), SOUTH, 0.01),                               # у тумб лицом к ним (они на +z)
+    (lambda: face([SINK], 1.0, 0.3), SOUTH, 0.1),                                # у наружной стены z = 0 - лицом в комнату
     (lambda: face([SINK], 1.5, 2.0), None, None),                                # в середине комнаты подсказки нет
-    (lambda: front(sofa(1.5, 0.6, title="Диван")), SOUTH, 1e-6),                # спинка у северной стены: смотрит в комнату
-    (lambda: front(sofa(1.5, 3.4, title="Диван")), -SOUTH, 1e-6),               # спинка у южной стены
+    (lambda: front(sofa(1.5, 0.6, title="Диван")), SOUTH, 1e-6),                # спинка у стены z = 0: смотрит в комнату
+    (lambda: front(sofa(1.5, 3.4, title="Диван")), -SOUTH, 1e-6),               # спинка у стены z = 4
     (lambda: front(TOILET, along_long=True), SOUTH, 1e-6),                      # унитаз - вдоль длинной стороны, от бачка
     (lambda: face([STOVE, TABLE], 4.55, 3.25), SOUTH, 0.01),                    # у плиты лицом к ней, хотя стол близко за спиной
 ], ids=["object-of-interest", "away-from-wall", "open-room", "sofa-north", "sofa-south", "toilet", "stove"])
@@ -154,7 +154,7 @@ def test_timed_track_keeps_pauses_and_goes_through_doors():
 
 
 def test_nav_front_of_bed_is_the_free_side_in_a_narrow_room():
-    """Кровать в 0,1 м от северной стены в комнате 2,65 м: щуп дальше полуметра вылетал за южную стену, и свободная сторона выбиралась наугад."""
+    """Кровать в 0,1 м от стены в узкой комнате: щуп дальше полуметра вылетал за противоположную стену, и свободная сторона выбиралась наугад."""
     walls = [wall(0, 0, 5.8, 0), wall(5.8, 0, 5.8, 2.65), wall(5.8, 2.65, 0, 2.65), wall(0, 2.65, 0, 0)]
-    bed = {"id": "b", "title": "Кровать", "kind": "furniture", "x": 3.32, "z": 0.2, "w": 1.6, "d": 2.0, "h": 0.89, "angle": math.pi / 2}   # север у стены, на юг до стены около 0,9 м
-    assert abs(nav.Nav({"walls": walls, "objects": [bed]}).front_of(bed) - SOUTH) < 1e-6                                                # свободная сторона на юге
+    bed = {"id": "b", "title": "Кровать", "kind": "furniture", "x": 3.32, "z": 0.2, "w": 1.6, "d": 2.0, "h": 0.89, "angle": math.pi / 2}   # одна сторона у стены, от другой до стены около 0,9 м
+    assert abs(nav.Nav({"walls": walls, "objects": [bed]}).front_of(bed) - SOUTH) < 1e-6                                                # свободная сторона на +z

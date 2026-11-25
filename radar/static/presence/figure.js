@@ -13,7 +13,7 @@ export const BODIES = {            // рост = headY + head
   female: {
     head: 0.092, neck: 0.04, hipY: 0.88, shoulderY: 1.35, headY: 1.558, torsoR: [0.15, 0.098, 0.14], torsoSquash: [0.72, 0.66],
     shoulderX: 0.16, arm: [0.035, 0.029, 0.024], leg: [0.07, 0.048, 0.03], hipX: 0.082, upperArm: 0.255, foreArm: 0.235, thigh: 0.4, calf: 0.41, bust: 0.05,
-    sitSpread: 0.0, sitFoot: 0.14,                                                                             // девочка сидит коленями вместе, стопы в стороны, ладони на коленях
+    sitSpread: 0.0, sitFoot: 0.14,                                                                             // женская фигура сидит коленями вместе, стопы в стороны, ладони на коленях
   },
 };
 // Рост и вес конкретного человека поверх опорной фигуры своего пола: рост масштабирует высоту, ширина по росту и корню из отношения индексов массы тела.
@@ -89,7 +89,7 @@ function standingJoints(B, variant = 'cool') {
   return J;
 }
 
-function sittingJoints(B) {                                                    // сидит свободно: колени врозь (девочка - вместе), откинувшись, ладони на коленях, голова чуть набок
+function sittingJoints(B) {                                                    // сидит свободно: колени врозь (у женской фигуры вместе), откинувшись, ладони на коленях, голова чуть набок
   const hx = B.hipX, sx = B.shoulderX, drop = B.hipY - SEAT_Y, lean = -0.09, sy = B.shoulderY - drop, hy = SEAT_Y + 0.02, spread = B.sitSpread;
   const J = { pelvis: [0, SEAT_Y, 0], waist: [0, SEAT_Y + 0.14, lean * 0.4], chest: [0, sy, lean], neck0: [0, sy + 0.08, lean], neck1: [0.01, sy + 0.16, lean * 1.05],
               head: [0.03, B.headY - drop, lean * 1.1 + 0.01], parts: [] };
@@ -134,15 +134,15 @@ function backJoints(B) {
 }
 
 // Части тела позы: капсулы {a, b, r0, r1, squash?} и шары {c, r}; pose: stand, sit, lie.
-export const PHALLUS_LENGTH_M = 0.20, PHALLUS_RADIUS_M = 0.02, PHALLUS_FRONT_Z = 0.095, PHALLUS_CROTCH_DROP_M = 0.1;   // 20 см прямо; стоя висит вертикально между ног впереди бёдер, корень в паху, на 10 см ниже тазобедренного сустава   // у мужской фигуры по умолчанию включён (people.<имя>.phallus в плане)
+export const PHALLUS_LENGTH_M = 0.20, PHALLUS_RADIUS_M = 0.02, PHALLUS_FRONT_Z = 0.095, PHALLUS_CROTCH_DROP_M = 0.1;   // размер и крепление детали шутки на фигуре   // рисуется при включённой шутке SAM_RADAR_FIGURE_JOKE у человека с people.<имя>.phallus в плане
 
-// Часть тела: стоя висит вниз между ног перед бёдрами с плавным изгибом вперёд, сидя лежит вперёд по сиденью с лёгкой дугой.
-// Оси [сторона, вверх, вперёд]; ломаная из опорных точек, около 30 см длиной; капсулы по звеньям и головка шаром на конце.
-// Висит по гравитации: от паха чуть вперёд, потом дугой вниз, головка заметно ниже корня; редко поднимается (erect).
+// Деталь шутки: два состояния на каждую позу, стоя и сидя.
+// Оси [сторона, вверх, вперёд]; ломаная из опорных точек, около 30 см длиной; капсулы по звеньям и шар на конце.
+// Состояние hang почти всегда, erect редко.
 const PHALLUS_PATH_LENGTH_M = 0.3;     // длина, на которую нарисованы пути ниже
 const PHALLUS_PATH = {
-  stand: { hang: [[0.80, 0.095], [0.785, 0.11], [0.70, 0.115], [0.60, 0.12], [0.50, 0.12]], erect: [[0.80, 0.095], [0.895, 0.205], [0.99, 0.315]] },   // стояк: почти прямо вперёд-вверх под 45 градусов, 30 см
-  sit: { hang: [[0.495, 0.1], [0.50, 0.18], [0.48, 0.24], [0.40, 0.265], [0.31, 0.27]],   // сидя: вперёд к краю сиденья и вниз через его край
+  stand: { hang: [[0.80, 0.095], [0.785, 0.11], [0.70, 0.115], [0.60, 0.12], [0.50, 0.12]], erect: [[0.80, 0.095], [0.895, 0.205], [0.99, 0.315]] },   // путь под 45 градусов
+  sit: { hang: [[0.495, 0.1], [0.50, 0.18], [0.48, 0.24], [0.40, 0.265], [0.31, 0.27]],   // сидя: через край сиденья
           erect: [[0.495, 0.1], [0.59, 0.21], [0.685, 0.32]] },
 };   // [вверх, вперёд]
 export function phallusParts(pose, state = 'hang') {
@@ -151,7 +151,7 @@ export function phallusParts(pose, state = 'hang') {
   return [...path.slice(1).map((p, i) => ({ a: path[i], b: p, r0: r, r1: r })), { c: path[path.length - 1], r: r * 1.4 }];
 }
 
-// Лёжа на боку: оси [вперёд, вверх, вбок], живот к +вбок. Поднятое состояние идёт от паха наружу, к стороне живота, чуть вперёд и вверх; висящее лёжа не рисуется.
+// Лёжа на боку: оси [вперёд, вверх, вбок], живот к +вбок. Рисуется только состояние erect.
 // В объятиях (hug, hugR) рисуется тоже, в сторону партнёра (у hugR зеркально, как и вся поза).
 const PHALLUS_LIE_ROOT = [-0.33, 0.18, 0.12], PHALLUS_LIE_DIR = [0.2, 0.28, 0.94];
 export function phallusLieParts(state) {
@@ -161,6 +161,9 @@ export function phallusLieParts(state) {
   const path = Array.from({ length: steps + 1 }, (_, k) => at(k));
   return [...path.slice(1).map((p, i) => ({ a: path[i], b: p, r0: r, r1: r })), { c: path[steps], r: r * 1.4 }];
 }
+
+// Состояние детали для opts.phallus: шутка выключена или человеку не положена - false, фигура без неё
+export function jokeState(wanted, state) { return wanted ? state() : false; }
 
 export function partsOf(gender, pose, variant = 'side', opts = {}) {
   const B = BODIES[gender] || BODIES.male, J = pose === 'sit' ? sittingJoints(B) : pose === 'lie' ? (variant === 'back' ? backJoints(B) : variant === 'hug' || variant === 'hugR' ? hugJoints(B) : sleepingJoints(B)) : standingJoints(B, variant);
@@ -178,7 +181,7 @@ export function partsOf(gender, pose, variant = 'side', opts = {}) {
   }
   parts.push(...J.parts.map(p => ({ ...p, group: p.r0 <= B.arm[0] + 1e-9 ? 'arm' : 'leg' })));        // руки тоньше ног: по первому радиусу
   if (opts.phallus && gender === 'male' && pose !== 'lie') parts.push(...phallusParts(pose, opts.phallus).map(p => ({ ...p, group: 'torso' })));
-  if (opts.phallus && gender === 'male' && pose === 'lie' && ['side', 'hug', 'hugR'].includes(variant)) parts.push(...phallusLieParts(opts.phallus).map(p => ({ ...p, group: 'torso' })));       // лёжа на боку и в объятиях: только поднятое       // часть тела: рисуется и мерцает вместе со всеми точками фигуры
+  if (opts.phallus && gender === 'male' && pose === 'lie' && ['side', 'hug', 'hugR'].includes(variant)) parts.push(...phallusLieParts(opts.phallus).map(p => ({ ...p, group: 'torso' })));       // лёжа на боку и в объятиях: только erect       // часть тела: рисуется и мерцает вместе со всеми точками фигуры
   return pose === 'lie' && variant === 'hugR' ? parts.map(mirrorZ) : parts;            // партнёр с другой стороны живота: зеркало по оси «вбок»
 }
 

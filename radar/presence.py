@@ -16,7 +16,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Iterable
 
-POINTS_PER_PERSON = 220      # хватает на читаемый силуэт 1,75 м; больше - зря нагружает видеокарту и канал
+POINTS_PER_PERSON = 220      # хватает на читаемый силуэт человека; больше - зря нагружает видеокарту и канал
 STALE_S = 1.5                # кадр старше - точки начинают рассеиваться
 LOST_S = 8.0                 # кадр старше - человек считается потерянным и из состояния уходит
 BODY_HEIGHT_M = 1.75         # габарит мок-человека

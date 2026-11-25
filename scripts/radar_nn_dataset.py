@@ -13,9 +13,9 @@
 Окно - window_s секунд на телефон: медиана и разброс уровня по свежим кадрам (кадр моложе FRESH_MS), доля свежих, разница двух антенн, уровень подтверждений,
 скорости передачи и приёма. Имена устройств и мест берутся из таблицы точек в data/, в набор телефоны попадают как phone-a/phone-b, места - как в таблице.
 
-Запуск: python scripts/radar_nn_dataset.py --places data/walks/nn/places-2026-10-11.json --marks data/walks/walk-2026-10-11.jsonl \\
-        --raw data/presence_tracks/raw-20261011.jsonl --walks data/walks/nn/walks-2026-10-11.json --classes data/walks/nn/classes-2026-10-11.json \\
-        --out data/walks/nn --tag 2026-10-11 [--window-s 1]"""
+Запуск: python scripts/radar_nn_dataset.py --places data/walks/nn/places-<дата>.json --marks data/walks/walk-<дата>.jsonl \\
+        --raw data/presence_tracks/raw-ГГГГММДД.jsonl --walks data/walks/nn/walks-<дата>.json --classes data/walks/nn/classes-<дата>.json \\
+        --out data/walks/nn --tag <дата> [--window-s 1]"""
 from __future__ import annotations
 
 import argparse

@@ -7,7 +7,7 @@
 выбрасываются. Синтетика - склейки обучающих отрезков по совпадению названия места на стыке, длительность стоянок 0,5-2x, границы стоянок сдвинуты
 случайно на ±boundary_jitter_s; в проверку не идёт. Баланс - прореживание «стоит давно» до long_keep_s секунд на стоянку (начало стоянки целиком).
 
-Запуск: python scripts/radar_nn_train.py --data data/walks/nn --tag 2026-10-11 [--windows 2 3 5 8] [--folds 5] [--epochs 40] [--device auto]
+Запуск: python scripts/radar_nn_train.py --data data/walks/nn --tag <дата> [--windows 2 3 5 8] [--folds 5] [--epochs 40] [--device auto]
 Результат: data/walks/nn/results-<tag>.json, веса моделей data/walks/nn/model-<W>s-<tag>.npz."""
 from __future__ import annotations
 

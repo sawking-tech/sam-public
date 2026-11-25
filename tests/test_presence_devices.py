@@ -24,9 +24,9 @@ PUSHES = {                                                           # точк�
     "exact_centre_to_plus_x": ({"x": 9.8, "z": 5.3}, [OWNER], {"x": 10.4, "z": 5.3}),
 }
 LABELS = {
-    "present": ("'Redmi-Note-13-Pro-5G', -66.5, 'Owner', true, false", "Owner: Redmi · -66.5 дБ"),
-    "left": ("'Redmi-Note-13-Pro-5G', -66.5, 'Owner', false, true", "Owner: Redmi · вышел из сети"),
-    "no_owner": ("'Redmi', -66.5, null, false, false", ""),
+    "present": ("'Beta-Max-13-Pro-5G', -66.5, 'Owner', true, false", "Owner: Beta · -66.5 дБ"),
+    "left": ("'Beta-Max-13-Pro-5G', -66.5, 'Owner', false, true", "Owner: Beta · вышел из сети"),
+    "no_owner": ("'Beta', -66.5, null, false, false", ""),
 }
 SCENARIOS = {
     **{f"target:{k}": f"m.deviceTarget({json.dumps(d)}, {json.dumps(c)})" for k, (d, c, _) in TARGETS.items()},

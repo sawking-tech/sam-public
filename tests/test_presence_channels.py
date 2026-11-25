@@ -11,7 +11,7 @@ from radar import presence_wifi as pw
 from tests.fakes_presence import isolated_hub_env
 
 A, B = "resident-a", "resident-b"
-OWNERS = {"redmi": A, "s24": B}
+OWNERS = {"beta": A, "alpha": B}
 BED = [(4.1, 0.9, 1.0, "кровать")]                                                         # где устройство по итогу ста бросков: одно пятно, вся доля
 NOW = 10_000.0
 PC_SPOT = {"x": 8.0, "z": 4.0, "pose": "sit", "owner": B}
@@ -31,33 +31,33 @@ def dev(name, present=True, activity=0.0, ago=0.0, **extra):
 
 
 def chat_from_pc():
-    return pm.evidence_from(pm.Message(NOW, "chat", "workpc", B), {"workpc": PC_SPOT})
+    return pm.evidence_from(pm.Message(NOW, "chat", "desk-pc", B), {"desk-pc": PC_SPOT})
 
 
 # --- Wi-Fi: присутствующее устройство хозяина ---
 
 def _one_spot():
-    [e] = wifi([dev("Redmi-Note-13")], lambda d: BED)
+    [e] = wifi([dev("Beta-Max-13")], lambda d: BED)
     assert (e.person, e.weight, e.x, e.z, e.pose, e.face) == (A, pw.PRESENT_WEIGHT, 4.1, 0.9, None, None)
 
 
 def _no_spots():
     for spots in (None, lambda d: []):
-        assert [(e.person, e.weight, e.x, e.z) for e in wifi([dev("Redmi-Note-13")], spots)] == [(A, pw.PRESENT_WEIGHT, None, None)]
+        assert [(e.person, e.weight, e.x, e.z) for e in wifi([dev("Beta-Max-13")], spots)] == [(A, pw.PRESENT_WEIGHT, None, None)]
 
 
 def _shares_split_the_weight():
     spots = [(8.0, 4.0, 0.7, "стол в кабинете"), (9.8, 5.3, 0.3, "диван в кабинете")]
-    got = wifi([dev("Redmi-Note-13", signal_db=-46.0)], lambda d: spots)
+    got = wifi([dev("Beta-Max-13", signal_db=-46.0)], lambda d: spots)
     assert [(e.person, e.x, e.z) for e in got] == [(A, 8.0, 4.0), (A, 9.8, 5.3)]
     assert sum(e.weight for e in got) == pytest.approx(pw.PRESENT_WEIGHT)
     assert "стол в кабинете" in got[0].note and "70%" in got[0].note
 
 
 def _activity_raises_weight_to_the_cap_and_drives_the_silhouette():
-    calm, busy = wifi([dev("redmi")], lambda d: BED)[0], wifi([dev("redmi", activity=1.0)], lambda d: BED)[0]
+    calm, busy = wifi([dev("beta")], lambda d: BED)[0], wifi([dev("beta", activity=1.0)], lambda d: BED)[0]
     assert calm.weight < busy.weight <= pw.MAX_WEIGHT
-    assert fz.fuse([calm], NOW)[0].activity == 0.0 and fz.fuse(wifi([dev("s24", activity=0.8)], lambda d: BED), NOW)[0].activity == 0.8
+    assert fz.fuse([calm], NOW)[0].activity == 0.0 and fz.fuse(wifi([dev("alpha", activity=0.8)], lambda d: BED), NOW)[0].activity == 0.8
 
 
 @pytest.mark.parametrize("case", [_one_spot, _no_spots, _shares_split_the_weight, _activity_raises_weight_to_the_cap_and_drives_the_silhouette],
@@ -70,23 +70,23 @@ def test_owned_present_device_is_evidence_at_its_places_split_by_shares(case):
 
 def _no_owner_nothing_and_left_is_against():
     assert wifi([dev("tablet-x")]) == []
-    [away] = wifi([dev("redmi", present=False, ago=120)])
+    [away] = wifi([dev("beta", present=False, ago=120)])
     assert away.away and away.person == A and away.weight == pw.AWAY_WEIGHT
-    assert wifi([dev("redmi", present=False, ago=pw.AWAY_FORGET_S + 1)]) == []     # давно выключен: не признак ухода
+    assert wifi([dev("beta", present=False, ago=pw.AWAY_FORGET_S + 1)]) == []     # давно выключен: не признак ухода
 
 
 def _confidence_drops_but_the_person_stays():
-    home = fz.fuse([chat_from_pc()] + wifi([dev("s24")], lambda d: BED), NOW)[0].confidence
-    gone = fz.fuse([chat_from_pc()] + wifi([dev("s24", present=False, ago=95)]), NOW)[0].confidence
+    home = fz.fuse([chat_from_pc()] + wifi([dev("alpha")], lambda d: BED), NOW)[0].confidence
+    gone = fz.fuse([chat_from_pc()] + wifi([dev("alpha", present=False, ago=95)]), NOW)[0].confidence
     assert home == pytest.approx(1.0) and gone == pytest.approx(0.5)
-    assert fz.fuse(wifi([dev("s24", present=False, ago=95)]), NOW) == []          # одно «против» человека не создаёт
+    assert fz.fuse(wifi([dev("alpha", present=False, ago=95)]), NOW) == []          # одно «против» человека не создаёт
 
 
 def _band_switch_and_ownerless_pc_are_not_leaving():
     gone = {"present": False, "seen_ago_s": 5000.0}
-    other_band = {"name": "Redmi-Note", "present": True, "signal_db": -65.0, "seen_ago_s": 0.0}
-    assert not any(e.away for e in wifi([{**gone, "name": "Redmi-Note"}, {**gone, "name": "Other-PC"}, other_band]))
-    assert [e.away for e in wifi([{**gone, "name": "Redmi-Note"}])] == [True]       # пропал совсем: признак ухода остаётся
+    other_band = {"name": "Beta-Max", "present": True, "signal_db": -65.0, "seen_ago_s": 0.0}
+    assert not any(e.away for e in wifi([{**gone, "name": "Beta-Max"}, {**gone, "name": "Other-PC"}, other_band]))
+    assert [e.away for e in wifi([{**gone, "name": "Beta-Max"}])] == [True]       # пропал совсем: признак ухода остаётся
 
 
 @pytest.mark.parametrize("case", [_no_owner_nothing_and_left_is_against, _confidence_drops_but_the_person_stays, _band_switch_and_ownerless_pc_are_not_leaving],
@@ -98,9 +98,9 @@ def test_device_leaving_lowers_confidence_but_never_creates_or_removes_a_person(
 # --- сообщения: чат, голос, «со слов» ---
 
 def _told_about_a_lying_place_lives_for_hours():
-    told = pm.evidence_from(pm.Message(NOW, "told", None, A, place="redmi"), {"redmi": {"x": 4.1, "z": 0.9, "pose": "lie", "face": 0.0}})
+    told = pm.evidence_from(pm.Message(NOW, "told", None, A, place="beta"), {"beta": {"x": 4.1, "z": 0.9, "pose": "lie", "face": 0.0}})
     assert (told.person, told.weight, told.pose, told.half_life_s) == (A, pm.TOLD_WEIGHT, "lie", pm.TOLD_REST_HALF_LIFE_S)
-    [est] = fz.fuse([told] + wifi([dev("redmi")], lambda d: BED), NOW)
+    [est] = fz.fuse([told] + wifi([dev("beta")], lambda d: BED), NOW)
     assert est.confidence == pytest.approx(1 - (1 - pm.TOLD_WEIGHT) * (1 - pw.PRESENT_WEIGHT))
     assert fz.fuse([told], NOW + pm.TOLD_REST_HALF_LIFE_S)[0].confidence == pytest.approx(pm.TOLD_WEIGHT / 2)
 
@@ -113,12 +113,12 @@ def _told_about_a_sitting_place_fades_in_a_quarter_of_an_hour():
 
 def _unknown_place_or_no_name_gives_nothing():
     assert pm.evidence_from(pm.Message(NOW, "told", None, A, place="nowhere"), {}) is None
-    assert pm.evidence_from(pm.Message(NOW, "told", None, None, place="redmi"), {"redmi": {"x": 1, "z": 1}}) is None
+    assert pm.evidence_from(pm.Message(NOW, "told", None, None, place="beta"), {"beta": {"x": 1, "z": 1}}) is None
 
 
 def _chat_from_a_named_device_is_certain():
     assert chat_from_pc().weight == 1.0
-    [est] = fz.fuse([chat_from_pc()] + wifi([dev("s24")], lambda d: BED), NOW)
+    [est] = fz.fuse([chat_from_pc()] + wifi([dev("alpha")], lambda d: BED), NOW)
     assert est.confidence == pytest.approx(1.0) and set(est.sources) == {"messages", "wifi"}
 
 
@@ -159,8 +159,8 @@ def test_latest_place_of_a_person_wins_and_far_places_are_not_averaged():
 def test_routine_window_through_midnight_gives_a_weak_guess_at_a_known_place():
     assert pt.in_window(23 * 60 + 30, "23:00", "08:00") and pt.in_window(3 * 60, "23:00", "08:00") and not pt.in_window(12 * 60, "23:00", "08:00")
     night = datetime(2026, 10, 10, 3, 0).timestamp()
-    routines = [{"person": A, "from": "23:00", "to": "08:00", "place": "redmi"}, {"person": B, "from": "23:00", "to": "08:00", "place": "nowhere"}]
-    [e] = pt.evidence_from_routines(routines, {"redmi": {"x": 4.95, "z": 0.3, "pose": "lie"}}, night)
+    routines = [{"person": A, "from": "23:00", "to": "08:00", "place": "beta"}, {"person": B, "from": "23:00", "to": "08:00", "place": "nowhere"}]
+    [e] = pt.evidence_from_routines(routines, {"beta": {"x": 4.95, "z": 0.3, "pose": "lie"}}, night)
     assert (e.person, e.weight, e.pose) == (A, pt.DEFAULT_WEIGHT, "lie")
 
 
@@ -171,8 +171,8 @@ def hub_with_layout():
                         {"x1": 10, "z1": 8, "x2": 0, "z2": 8, "t": 0.2, "h": 2.5}, {"x1": 0, "z1": 8, "x2": 0, "z2": 0, "t": 0.2, "h": 2.5}],
               "objects": [{"title": "Стул", "kind": "furniture", "x": 7.75, "z": 3.75, "w": 0.5, "d": 0.5, "h": 0.85, "angle": 0.0}],      # под сидящим за компьютером есть сиденье
               "router": {"x": 5, "z": 4, "h": 2.4}, "rooms": [{"id": "h", "title": "дом", "x": 0, "z": 0, "w": 10, "d": 8}],
-              "spots": {"workpc": PC_SPOT}}
-    return ph.PresenceHub(ph.MODE_RSSI, layout, clock=lambda: NOW, owners={"redmi": A})
+              "spots": {"desk-pc": PC_SPOT}}
+    return ph.PresenceHub(ph.MODE_RSSI, layout, clock=lambda: NOW, owners={"beta": A})
 
 
 def test_hub_shows_a_person_from_any_channel_and_keeps_them_while_a_sign_is_left():
@@ -180,7 +180,7 @@ def test_hub_shows_a_person_from_any_channel_and_keeps_them_while_a_sign_is_left
     assert hub.identities(NOW) == []
     hub.note_message("chat", "unknown-laptop", B, now=NOW)                  # устройство не из плана: ничего
     assert hub.identities(NOW) == []
-    hub.note_message("chat", "workpc", B, now=NOW)
+    hub.note_message("chat", "desk-pc", B, now=NOW)
     [person] = hub.identities(NOW)
     assert person["person"] == B and person["confidence"] == 1.0 and person["pose"] == "sit"
     later = hub.identities(NOW + 1200)                                      # 20 минут спустя: слабее, но не исчез
@@ -189,7 +189,7 @@ def test_hub_shows_a_person_from_any_channel_and_keeps_them_while_a_sign_is_left
 
 def test_channels_are_chosen_by_env_and_told_is_off_by_default(tmp_path):
     hub = hub_with_layout()
-    hub.note_message("told", None, A, place="redmi", now=NOW)
+    hub.note_message("told", None, A, place="beta", now=NOW)
     assert hub.identities(NOW) == []                                       # «со слов» выключено: слова не принимаются
     only_wifi = ph.build(isolated_hub_env(tmp_path, **{ph.FLAG_ENV: "rssi", ph.CHANNELS_ENV: "wifi"}))
     assert only_wifi.enabled_channels == {"wifi"} and len(only_wifi.channels) == 1

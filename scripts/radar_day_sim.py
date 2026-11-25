@@ -8,7 +8,7 @@
 Выход - в `data/synthetic/` (личный файл, вне git): расписание `.json`, ряд уровней `.jsonl` (секунда, состояние, место, x, z, уровни по диапазонам).
 Фильтр. Режим --evaluate прогоняет участки ряда через `LiveFlow.observe` от известной первой точки и считает вершину (место с наибольшей массой среди мест привычек), найденные приходы, отдельно на места кроме стартового, отставание и мерцание на стоянке при разной доле стояния и весе предпочтений.
 
-Запуск: python scripts/radar_day_sim.py --person <ключ> [--date 2026-10-12] [--seed N] [--evaluate --segments 12:30+60,21:00+60 --stays 0,0.9 --weights 0.1,1 --error-seeds 1,2,3]"""
+Запуск: python scripts/radar_day_sim.py --person <ключ> [--date ГГГГ-ММ-ДД] [--seed N] [--evaluate --segments 12:30+60,21:00+60 --stays 0,0.9 --weights 0.1,1 --error-seeds 1,2,3]"""
 from __future__ import annotations
 
 import argparse
@@ -27,10 +27,10 @@ from radar import presence_rssi as rs                             # noqa: E402
 from radar.presence_random import Randomness                      # noqa: E402
 
 LAYOUT, HABITS, OUT_DIR, DEVICE_PREFS = "data/home_layout.json", "data/home_habits.json", "data/synthetic", "data/device_prefs.json"
-DEVICE_PART = "s24"                      # устройство, которым ходит человек: по нему берутся модели обоих диапазонов
+DEVICE_PART = "phone"                     # устройство, которым ходит человек: по нему берутся модели обоих диапазонов
 STAY_PROB = 0.7                          # остаться на прежнем месте, если оно допустимо в слоте (допущение)
 BRIEF_MIN = {"туалет": (3, 6), "ванная": (5, 10)}     # короткие места: минут на посещение, от и до (допущение)
-TEMPORAL_NOISE_DB = 1.0                  # шум секунды: у неподвижного AGS5-L09 sd 1,07 дБ (SAM-118)
+TEMPORAL_NOISE_DB = 1.0                  # шум секунды: у неподвижного устройства sd 1,07 дБ (SAM-118)
 ARRIVAL_HOLD_S = 3                       # отставание: верная точка столько секунд подряд
 DAY_S = 86400
 
@@ -163,7 +163,7 @@ def stand_runs(records: list[tuple[str, str | None]]) -> list[list[tuple[str, st
 
 def metrics(records: list) -> dict:
     """Вершина; приходы (все и на места, отличные от первой стоянки участка), найденные ARRIVAL_HOLD_S секунд подряд, и отставание найденных; мерцание: доля секунд стоянки,
-    где показано не основное место этой стоянки (критерий человека: не больше 20% на стоянке)."""
+    где показано не основное место этой стоянки (критерий: не больше 20% на стоянке)."""
     runs = stand_runs(records)
     seconds = [r for run in runs for r in run]
     top1 = sum(top == state for state, top in seconds) / len(seconds) if seconds else 0.0

@@ -338,7 +338,7 @@ def legacy_voice_deps(llm, *, tool_impl=None, parse=None, rag="", rag_timeout_s=
 
 # ─── планировщик workflow (копия помощника tests/test_workflows.py) ─────────────────
 
-T0 = datetime(2026, 10, 10, 2, 0, tzinfo=timezone(timedelta(hours=6)))   # Омск, как стенд
+T0 = datetime(2026, 10, 10, 2, 0, tzinfo=timezone(timedelta(hours=6)))   # часовой пояс фиксирован: тесты не зависят от машины
 
 
 def scheduler(flows, run_step):

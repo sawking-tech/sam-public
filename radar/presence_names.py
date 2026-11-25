@@ -12,7 +12,7 @@ import difflib
 from .presence_where import room_at
 
 CLOSE_LIMIT = 5            # сколько похожих мест назвать в отказе: длиннее список не помогает выбрать
-CLOSE_CUTOFF = 0.4         # порог похожести difflib: «диван» находит «диван в зале» и «диван в кабинете»
+CLOSE_CUTOFF = 0.4         # порог похожести difflib: «диван» находит «диван в зале»
 POSES = ("stand", "sit", "lie")
 
 

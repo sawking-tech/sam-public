@@ -34,7 +34,7 @@ class Station:
     iface: str
     signal_db: float         # среднее по цепочкам антенн, точнее целого dBm
     inactive_ms: int
-    name: str | None = None  # имя устройства из аренды DHCP роутера (S24-Ultra-..., Office-PC); нет аренды - None
+    name: str | None = None  # имя устройства из аренды DHCP роутера (Phone-..., Office-PC); нет аренды - None
     link: LinkFeatures | None = None   # цепочки, среднее роутера, подтверждения, скорость и MCS; нет - None
 
 

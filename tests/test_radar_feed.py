@@ -2,6 +2,7 @@
 Граница - клиент радара шлюза: его подменяет запоминающий клиент."""
 import pytest
 
+from gateway import radar_switch
 from voice.layer import radar_feed as rf
 
 PEOPLE = "first,second"          # метки людей без дефиса: дефис отделяет вариант голоса
@@ -16,7 +17,7 @@ class FakeClient:
 
 
 def _env(**extra):
-    return {rf.PEOPLE_ENV: PEOPLE, **extra}
+    return {radar_switch.ENV: "1", rf.PEOPLE_ENV: PEOPLE, **extra}
 
 
 @pytest.mark.parametrize("env, rec, sent", [
