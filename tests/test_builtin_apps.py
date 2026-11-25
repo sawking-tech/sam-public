@@ -19,7 +19,10 @@ from tests.test_presence_where import TELL_LAYOUT, hub_at
 pytestmark = pytest.mark.usefixtures("radar_on")
 
 RADAR_TOOLS = ["where", "history", "layout", "tell", "devices", "furniture"]
-ENV = {"SAM_RADAR": "1", "SAM_SERVER": "http://localhost:8123", "SAM_RADAR_URL": "http://127.0.0.1:8099"}
+# Команды заданы явно: по умолчанию остановка и перезапуск радара - скрипты стенда на Windows, а на Linux
+# их нет, и тест проверял бы powershell, а не радар. Что именно стоит в командах - дело теста restart.
+ENV = {"SAM_RADAR": "1", "SAM_SERVER": "http://localhost:8123", "SAM_RADAR_URL": "http://127.0.0.1:8099",
+       "SAM_APPS_STOP_CMD_RADAR": "radar-stop", "SAM_RESTART_CMD_RADAR": "radar-restart"}
 RADAR_BASE = "http://127.0.0.1:8099"
 RADAR_SPEC = TestClient(presence_api.create_app(hub_at(TELL_LAYOUT))).get("/openapi.json").json()
 
@@ -118,8 +121,9 @@ def test_loopback_address_follows_the_host_of_the_request(url, host, expected):
 def test_start_and_stop_commands_of_the_builtins():
     monitor, radar = builtin("monitor"), builtin("radar")
     assert builtin_apps.command(monitor, "start", {}, True)[1].startswith("Монитор - часть шлюза")
-    start, _ = builtin_apps.command(radar, "start", ENV, True)
-    stop, _ = builtin_apps.command(radar, "stop", {}, True)
+    on = {"SAM_RADAR": "1"}                     # при выключенном радара нет и среди компонентов стенда
+    start, _ = builtin_apps.command(radar, "start", on, True)          # по умолчанию - скрипт стенда
+    stop, _ = builtin_apps.command(radar, "stop", on, True)
     assert str(restart.RADAR_SCRIPT) in start and not start.endswith("-Stop")
     assert str(restart.RADAR_SCRIPT) in stop and stop.endswith(builtin_apps.RADAR_STOP_SWITCH)
     assert builtin_apps.command(radar, "stop", {}, False) == ("", "Радар: остановка здесь не настроена: "
@@ -239,7 +243,8 @@ def test_radar_is_removed_with_its_slug_and_comes_back(tmp_path, monkeypatch, ag
     assert client.post("/sam/apps/radar/delete", json={"confirm": "monitor"}).status_code == 400
     out = client.post("/sam/apps/radar/delete", json={"confirm": "radar"}).json()
     assert out["ok"] and "данные остались" in out["text"]
-    assert run.calls[0].endswith("-Stop") and str(restart.START_SCRIPT) in run.calls[1] and "-Mcp" in run.calls[1]
+    assert run.calls[0] == ENV["SAM_APPS_STOP_CMD_RADAR"]            # остановка - своя команда, не powershell
+    assert str(restart.START_SCRIPT) in run.calls[1] and "-Mcp" in run.calls[1]   # агрегатор перечитывает метки
     assert not (tmp_path / "radar" / apps.MANIFEST).exists() and builtin_apps.removed(tmp_path) == ["radar"]
     builtin_apps.ensure(tmp_path, shipped())                                    # снятое не ставится снова само
     assert builtin_apps.find(tmp_path, "radar") is None
