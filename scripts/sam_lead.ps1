@@ -8,7 +8,7 @@ $LEAD_ALIVE_NAME = 'lead.alive'                  # voice/layer/bus.py LEAD_ALIVE
 $LEAD_ALIVE_S    = 5                             # как SAM_LEAD_ALIVE_S в gateway/agent.py: отметка старше - сессии нет
 $LEAD_TAB_TITLE  = 'SAM: Claude Code'
 $LEAD_MODEL_NAME = 'claude-code'                 # gateway/main_model.py CLAUDE_CODE
-$MAIN_ORDER_DEFAULT = 'claude-code,llm'          # gateway/main_model.py DEFAULT_ORDER
+$MAIN_ORDER_DEFAULT = 'llm'                    # gateway/main_model.py DEFAULT_ORDER: claude-code - обход, ставится явно
 $PYTHON_NAMES    = @('python.exe', 'pythonw.exe')
 # Первое сообщение сессии: без него она молчит до ввода с клавиатуры; шаги старта перечисляет бриф SessionStart.
 # Латиницей: Windows PowerShell 5.1 читает .ps1 без BOM в кодовой странице ANSI, кириллица в строке дойдёт до claude битой.

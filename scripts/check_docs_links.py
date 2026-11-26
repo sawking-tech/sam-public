@@ -53,17 +53,21 @@ def _prose_lines(text: str):
             yield n, line
 
 
-def _targets(text: str) -> list[tuple[int, str]]:
+def _targets(text: str) -> list[tuple[int, str, bool]]:
+    """Цель и признак: True - markdown-ссылка, False - имя в бэктиках.
+
+    Разница важна: `](x.md)` всегда ссылка и проверяется от папки файла, а имя в бэктиках бывает
+    сокращением в прозе, и путь без папки там не проверяется (см. _strip_target)."""
     out = []
     for n, line in _prose_lines(text):
         for m in MD_LINK.finditer(line):
-            out.append((n, m.group(1)))
+            out.append((n, m.group(1), True))
         for m in INLINE.finditer(line):
-            out.append((n, m.group(1)))
+            out.append((n, m.group(1), False))
     return out
 
 
-def _strip_target(raw: str) -> str | None:
+def _strip_target(raw: str, is_link: bool) -> str | None:
     """Путь, который стоит проверять, или None: внешнее, якорь, шаблон и имя модуля без папки отсеиваются."""
     t = raw.split("#", 1)[0].split("?", 1)[0].strip()
     if not t or "://" in t or t.startswith(("mailto:", "/", "<", "{")):
@@ -72,11 +76,17 @@ def _strip_target(raw: str) -> str | None:
         return None
     if not t.endswith(FILE_EXT) or "*" in t:
         return None                      # шаблон вида voice/layer/*.py - не один файл
-    if "/" not in t:
-        return None                      # имя файла без папки: сокращение в прозе («audio-core.md» рядом с docs/features/)
-    if not t.startswith(TRACKED_DIRS):
-        return None                      # путь вне известных папок: `pip install -r ...`, примеры
+    if not is_link:
+        if "/" not in t:
+            return None                  # имя файла без папки: сокращение в прозе («audio-core.md» рядом с docs/features/)
+        if not t.startswith(TRACKED_DIRS):
+            return None                  # путь вне известных папок: `pip install -r ...`, примеры
     return t
+
+
+def _exists(root: Path, doc: Path, target: str) -> bool:
+    """Путь есть от корня репозитория или от папки файла; `..` в цели нормализуется."""
+    return (root / target).exists() or (doc.parent / target).resolve().exists()
 
 
 def check(root: Path) -> list[str]:
@@ -84,13 +94,13 @@ def check(root: Path) -> list[str]:
     broken = []
     for doc in _iter_docs(root):
         text = doc.read_text(encoding="utf-8", errors="replace")
-        for line_no, raw in _targets(text):
-            target = _strip_target(raw)
+        for line_no, raw, is_link in _targets(text):
+            target = _strip_target(raw, is_link)
             if target is None:
                 continue
-            if (root / target).exists() or (doc.parent / target).exists():
+            if _exists(root, doc, target):
                 continue
-            broken.append(f"{doc.relative_to(root)}:{line_no} -> {target}")
+            broken.append(f"{doc.relative_to(root).as_posix()}:{line_no} -> {target}")
     return broken
 
 

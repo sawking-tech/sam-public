@@ -12,6 +12,13 @@ def _main(up: dict, order="claude-code,llm", on_switch=None):
     return mm.MainModel(models, mm.parse_order(order), **({"on_switch": on_switch} if on_switch else {}))
 
 
+def test_default_order_puts_the_gateway_model_first(monkeypatch):
+    """Целевой путь - llm за роутером (за ним может стоять Cortex за ACP). claude-code - обход для стендов без
+    API ключа, где подписка на CLI работает вместо API: он включается строкой, а не стоит первым по умолчанию."""
+    monkeypatch.delenv(mm.ENV, raising=False)
+    assert mm.parse_order() == ["llm"]
+
+
 def test_main_model_follows_priority_with_inertia():
     up, switched = {"cc": False, "llm": True}, []
     main = _main(up, on_switch=lambda was, now: switched.append((was, now)))
