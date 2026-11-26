@@ -1,7 +1,7 @@
 # operations
 
-Расход денег и запуск. Устройство - в [architecture](../architecture/index.md), настройки фич - в
-[features](../features/index.md).
+Расход денег и запуск. Устройство - в [architecture](../architecture/README.md), настройки фич - в
+[features](../features/README.md).
 
 **[cost.md](cost.md)** - деньги. `_token_usage` пишет каждый вызов с ролью и живёт 30 дней; цена берётся из
 `prices.json` или от поставщика. `GET /sam/usage/cost` отдаёт сумму по валютам и разбивку; вызов без цены или

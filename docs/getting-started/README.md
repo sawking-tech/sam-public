@@ -11,4 +11,4 @@ Python 3.12, Docker и ключ одного поставщика LLM либо �
 [household.md](household.md): люди и питомцы дома с ролью и короткой характеристикой. Сколько их и кем они друг
 другу приходятся, задаёт дом: слотов в коде и промптах нет.
 
-Возможности - [features](../features/index.md). Устройство - [architecture](../architecture/index.md).
+Возможности - [features](../features/README.md). Устройство - [architecture](../architecture/README.md).
