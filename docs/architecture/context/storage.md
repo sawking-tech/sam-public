@@ -1,7 +1,7 @@
 # Хранилище: MongoDB и Qdrant
 
 MongoDB хранит источник правды, Qdrant — оглавление к фактам памяти. Коллекции лежат в базе `sam`. Документы памяти
-и их поиск описаны в [memory-search](../features/memory/memory-search.md), здесь схема коллекций.
+и их поиск описаны в [memory-search](../../features/memory/memory-search.md), здесь схема коллекций.
 
 Код: `gateway/repos/*` — CRUD с зависимостями, в тестах подменяется mongomock.
 
@@ -31,7 +31,7 @@ MongoDB хранит источник правды, Qdrant — оглавлен�
 ```
 
 Вызовы инструментов хранятся нейтрально, ролью `tool_call`, и форматируются под текущую модель при чтении истории
-([tool-formats](../architecture/gateway/tool-formats.md)). Воркеры пишут в сессию `task:XXXXXX`, отдельно от
+([tool-formats](../gateway/tool-formats.md)). Воркеры пишут в сессию `task:XXXXXX`, отдельно от
 пользовательской.
 
 История переживает перезапуск шлюза. При старте она очищается только с `RESET_HISTORY_ON_START=true`. Память в

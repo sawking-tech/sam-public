@@ -1,8 +1,8 @@
 # Сжатие истории
 
 Контекст модели не растёт с длиной беседы. Старые сообщения сессии сворачиваются в сводки скользящим окном,
-оригиналы уходят в архив и остаются доступны поиском. Решение — [ADR-008](../adr/008-history-compression-window-archive.md),
-время запуска — [ADR-015](../adr/015-memory-work-in-pauses-auto-write.md).
+оригиналы уходят в архив и остаются доступны поиском. Решение — [ADR-008](../../adr/008-history-compression-window-archive.md),
+время запуска — [ADR-015](../../adr/015-memory-work-in-pauses-auto-write.md).
 
 `gateway/compression.py` - проход и каскад, `gateway/compression_watch.py` - когда запускать,
 `gateway/prompts/summarize.py` - промпты сводки и слияния.
