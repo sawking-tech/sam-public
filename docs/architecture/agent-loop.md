@@ -80,3 +80,69 @@
 - Новая модель с новым форматом вызова: вызов не разобран, текст уходит ответом, пока не добавлен разбор.
 - Разбор текста может принять вызов в обычном ответе текстовой модели за настоящий.
 
+## Шина и инъекции
+
+Производители событий, постоянное хранение в Mongo, подписка монитора и очередь инъекций.
+
+```mermaid
+flowchart LR
+  subgraph Sources[Производители событий]
+    U[User<br/>/v1/chat/completions]
+    A[Main agent<br/>_agent_loop]
+    W[Worker<br/>_agent_loop]
+    SL[session_lock]
+  end
+
+  subgraph Bus[event_bus.py]
+    EM[emit<br/>WS+MongoDB+filter]
+    IJ[inject<br/>per-session queue]
+    SUB[subscribers<br/>asyncio.Queue x N]
+    INJQ[(_inject_queues<br/>session → Queue)]
+  end
+
+  subgraph Sinks[Подписчики]
+    WS[WebSocket monitor<br/>monitor.html]
+    DB[(MongoDB sessions<br/>user/assistant/tool_call)]
+    AL[_agent_loop<br/>pop_inject каждый turn]
+  end
+
+  U -->|user_message| EM
+  A -->|tool_call/result, assistant_reply| EM
+  W -->|stage_update, task_message| EM
+  SL -->|queue_*, session_busy/idle| EM
+
+  EM --> SUB --> WS
+  EM --> DB
+
+  A -->|send_to_agent → inject<br/>+ stage_update continuation| IJ
+  IJ --> INJQ
+  INJQ -->|pop_inject| AL
+  AL --> W
+```
+
+Промпт учит главного агента проверять `list_agents` перед `spawn_agent` и брать `send_to_agent`, если есть
+подходящая задача; старые имена `get_tasks`, `create_task`, `send_to_task` остались в `TOOL_IMPL` для совместимости.
+Инъекция в задачу шлёт `stage_update("continuation", running)`, и задача оживает в мониторе.
+
+## Очередь сессии
+
+Дедуп, замок сессии, накопление фраз и склейка после хода.
+
+
+```mermaid
+flowchart LR
+  STT[STT-транскрипт<br/>от voice_client] --> DDUP[stt_dedup<br/>TF-IDF cosine<br/>vs history]
+  DDUP -->|новое| LK[session_lock<br/>per-session asyncio.Lock]
+  DDUP -.->|только дубль| DROP[(тихо игнор)]
+
+  LK --> BUSY{сессия<br/>busy?}
+  BUSY -- нет --> RUN[handler<br/>= sam_agent.run]
+  BUSY -- да --> Q[(pending queue<br/>per session)]
+  Q -.->|после run| MERGE[склеить ' '.join<br/>→ run ещё раз]
+  MERGE --> RUN
+
+  RUN --> AG[главный агент]
+
+  REST[REST API<br/>cancel-queue<br/>replace-queue] --> Q
+  EM[event_bus<br/>queue_*<br/>session_busy/idle] -.-> UI[монитор /monitor]
+```

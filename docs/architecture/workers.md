@@ -51,6 +51,74 @@
 (`sandbox.md`); весь вызов главного вместе с ожиданием замка и стартом контейнера не дольше
 `SAM_FAST_SANDBOX_MAIN_TIMEOUT_S` (10 с), просьба дольше - отказ «отдай воркеру».
 
+## Жизненный цикл задачи
+
+От создания до idle и воскрешения; таймаут 300 с и TTL 24 ч.
+
+```mermaid
+stateDiagram-v2
+  [*] --> Created: _impl_create_task<br/>save_task → MongoDB
+  Created --> Running: asyncio.create_task<br/>_run_worker_task
+  Running --> PlanStage: _stage("plan", running)
+  PlanStage --> RagFetch: get_rag_context (SAM-02)
+  RagFetch --> ExecStage: _stage("execute", running)
+  ExecStage --> LoopTurn: _agent_loop turn N
+  LoopTurn --> ToolCall: tool_call
+  ToolCall --> LoopTurn: results back
+  LoopTurn --> ReportStatus: report_status("ОТВЕТ: ...")
+  ReportStatus --> Done: STOP_WORKER<br/>_auto_respond → TASK_DONE
+  Done --> Idle: ws.save_session(status=idle)<br/>(SAM-38)<br/>messages → MongoDB worker_sessions
+
+  Idle --> Resumed: send_to_agent → find_by_prefix<br/>+ _resume_worker_task
+  Resumed --> LoopTurn: prior_messages + [CONTINUE] msg
+
+  Idle --> [*]: TTL 24h → auto-delete
+
+  LoopTurn --> Timeout: 300s wall clock
+  Timeout --> Failed: _stage("execute", failed)
+  Failed --> [*]: mark_dead
+
+  LoopTurn --> Cancelled: cancel_task
+  Cancelled --> [*]: _task_handles.pop
+```
+
+После `Done` задача переходит в `Idle`, контекст остаётся в `worker_sessions`. `send_to_agent` продолжает её
+через `_resume_worker_task`: прежние URL, разобранные данные и прогресс остаются, повторный `search_web` не
+нужен. Без активности 24 ч запись удаляет TTL-индекс.
+
+## Воскрешение воркера
+
+Завершённый воркер хранит контекст в `worker_sessions`; `send_to_agent` продолжает с прежней историей.
+
+
+```mermaid
+sequenceDiagram
+  autonumber
+  participant U as Пользователь
+  participant AG as Main agent
+  participant W as Worker (persistent)
+  participant DB as worker_sessions
+  participant TTS as TTS
+
+  U->>AG: "расскажи новости ИИ"
+  AG->>AG: SYSTEM_PROMPT: action → spawn_agent
+  AG->>W: spawn_agent → новый воркер
+  W->>W: search_web, parse, ...
+  W-->>AG: ОТВЕТ
+  AG-->>TTS: новости такие
+  W->>DB: save messages, status=idle (SAM-38)
+  Note over W: воркер УМИРАЕТ как Task,<br/>но сессия в MongoDB
+
+  U->>AG: "а про OpenAI подробнее?"
+  AG->>AG: list_agents → нашёл idle "новости ИИ"
+  AG->>AG: SYSTEM_PROMPT правило (SAM-37):<br/>continue вместо new
+  AG->>DB: load worker_session
+  AG->>W: _resume_worker(session, "про OpenAI")
+  W->>W: продолжает с известными URL,<br/>БЕЗ повторного search_web
+  W-->>AG: ОТВЕТ
+  AG-->>TTS: ...
+```
+
 ## Проверка
 
 `tests/test_worker.py`, `tests/test_worker_session.py`, `tests/test_worker_session_owner.py`.
