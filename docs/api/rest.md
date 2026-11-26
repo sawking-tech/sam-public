@@ -31,7 +31,7 @@
 | GET | `/monitor` | монитор |
 | * | `/apps/{slug}/...` | страница живого приложения с CSP sandbox; по id - 308 на slug |
 | WS | `/ws/monitor` | поток событий монитора |
-| WS | `/voice/turn` | голосовой ход (`../features/fast-voice.md`, ADR-010) |
+| WS | `/voice/turn` | голосовой ход (`../features/speech.md`, ADR-010) |
 
 ## Агент от основной модели вне шлюза
 
