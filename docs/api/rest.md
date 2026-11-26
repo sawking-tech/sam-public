@@ -39,27 +39,27 @@
 
 ```
 POST /sam/agents {"description": "...", "level": "smart|medium|weak", "tools": ["search_web", ...],
-                  "device": "", "name": "", "framework": "sam|cortex", "peers": [], "depth": 0, "steps": 30}
+         "device": "", "name": "", "framework": "sam|cortex", "peers": [], "depth": 0, "steps": 30}
 -> {"status": "ok", "task_id": "abcd1234", "session": "task:abcd1234", "level": ..., "tools": [...],
-    "device": ..., "model": ...}
+  "device": ..., "model": ...}
 ```
 
 - `level` - метка сложности, по умолчанию `medium`; модель - источник роутера из
-  `SAM_AGENT_LLM_SMART|MEDIUM|WEAK`, пусто или недоступен - выбор роутера.
+ `SAM_AGENT_LLM_SMART|MEDIUM|WEAK`, пусто или недоступен - выбор роутера.
 - `tools` - права: подмножество инструментов воркера, без поля - все. `ask_creator`, `report_status`,
-  `estimate_steps` и `request_steps` есть всегда. Права и метка хранятся в задаче и действуют после воскрешения.
+ `estimate_steps` и `request_steps` есть всегда. Права и метка хранятся в задаче и действуют после воскрешения.
 - `framework` - воркер шлюза или сессия Cortex (по умолчанию `SAM_AGENT_FRAMEWORK`, иначе `sam`). Агенту Cortex
-  `tools` обязательны, `peers` - кому он может писать, `depth` - поколений детей, до `SAM_AGENT_MAX_DEPTH`.
+ `tools` обязательны, `peers` - кому он может писать, `depth` - поколений детей, до `SAM_AGENT_MAX_DEPTH`.
 - `steps` - прикидка шагов (`../features/safety/guard.md`, шаги агентов).
 - Ручка требует ключ привилегий `X-SAM-Privilege`.
 - Отказ - код HTTP и одна строка в `detail`: 400 запрос, 429 все `SAM_MAX_WORKERS` заняты, 503 нет MongoDB,
-  устройства или модели.
+ устройства или модели.
 - Вопрос агента (`ask_creator`) идёт во входящие основной модели (`lead-in.jsonl`): тикер приносит его тиком `chat`
-  с `source: agent_question`, `session: task:<id>`. Ответ - `POST /sam/inject` в эту сессию. Итог агента приходит
-  туда же (`source: agent_done`) с вопросами, которые он задавал.
+ с `source: agent_question`, `session: task:<id>`. Ответ - `POST /sam/inject` в эту сессию. Итог агента приходит
+ туда же (`source: agent_done`) с вопросами, которые он задавал.
 - События агента в мониторе относятся к сессии `SAM_AGENT_PARENT_SESSION` (по умолчанию `voice`).
 - Ядро - `gateway/tools/agents.py` (`create_agent_impl`, `answer_agent_impl`, `ask_creator_impl`);
-  эндпоинты - обёртки, зависимости собирает `gateway/agent.py`.
+ эндпоинты - обёртки, зависимости собирает `gateway/agent.py`.
 
 ## Проверка
 

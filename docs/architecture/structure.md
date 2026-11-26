@@ -1,10 +1,11 @@
 # Структура кода
 
-Что где лежит и кто от кого зависит. Сверено с репозиторием.
+Раскладка кода: крупные блоки, средние внутри каждого, дерево папок и направления
+зависимостей. Сверено с репозиторием.
 
 ## Крупные блоки
 
-| Блок | Что это | Как запускается | Файлов |
+| Блок | Роль | Процесс | Файлов |
 |---|---|---|---|
 | `gateway/` | шлюз: входы, ход, агенты, память, песочница, приложения, workflow | процесс `uvicorn gateway.main:app`, порт 8000 | 252 |
 | `voice/` | голосовой слой: слух, синтез, шина, мост, тикер | процессы `voice.layer.voice`, `.bridge`, `.ticker` | 39 |
@@ -21,7 +22,7 @@
 
 ### gateway
 
-| Подпапка или группа | Что внутри |
+| Подпапка или группа | Модули |
 |---|---|
 | `main.py` | FastAPI-роутер: только маршруты, логики нет |
 | `agent.py` | регистрация инструментов, их обёртки, сборка зависимостей |
@@ -38,14 +39,14 @@
 | `compression.py`, `compression_watch.py`, `memory_extract.py`, `dream.py` | контекст: сжатие, извлечение фактов, ночное обслуживание |
 | `rag.py`, `lexical.py`, `recall.py`, `recall_history.py`, `embed_model.py`, `embedder_client.py`, `embedder_service.py` | память: поиск, слова, эмбеддер |
 | `guard.py`, `guard_scope.py`, `tool_policy.py`, `readonly_command.py`, `turn_taint.py`, `command_auth.py`, `secret_mask.py`, `privilege_key.py`, `access.py`, `core_paths.py` | допуск и защита: политика, судья, ключи, маска секретов |
-| `workflows.py`, `workflow_spec.py`, `workflow_gates.py`, `workflow_ask.py`, `push_queue.py`, `push_dispatch.py` | проактивность: планировщик, файл, ворота, очередь к модели |
+| `workflows.py`, `workflow_spec.py`, `workflow_gates.py`, `workflow_ask.py`, `push_queue.py`, `push_dispatch.py` | проактивность: планировщик, файл, условие вызова, очередь к модели |
 | `event_bus.py`, `session_lock.py`, `main_model.py`, `voice_turn.py`, `voice_socket.py`, `addressee.py`, `fast_voice_gate.py`, `fast_backoff.py`, `phrase_class.py`, `reply_class.py`, `spoken_history.py`, `speech_meta.py`, `stt_dedup.py` | ход и речь: шина, замок сессии, основная модель, голосовой ход, кому сказана фраза |
 | `stand_checks.py`, `stand_report.py`, `stand_watch_keeper.py`, `stand_silence.py`, `health.py`, `restart.py` | стенд: проверки, отчёты, надзор, перезапуск |
 | `static/` | монитор, каркас страниц, страница приложений |
 
 ### voice
 
-| Файл | Что |
+| Файл | Роль |
 |---|---|
 | `voice.py` | слух и озвучка одним процессом |
 | `hearing.py`, `audio_core.py`, `mic_watch.py`, `speakers.py` | микрофон, эхоподавление, фраза, опознание голоса |
@@ -79,18 +80,18 @@
 
 ```mermaid
 flowchart LR
-    CORTEX[cortex] --> GW[gateway]
-    MCP[mcp] --> GW
-    RADAR[radar] --> GW
-    VOICE[voice] --> GW
-    GW -->|только health и шина| VOICE
-    CORTEX -->|mcp-клиент| MCP
-    SCRIPTS[scripts] --> RADAR
-    SCRIPTS --> GW
-    SCRIPTS --> MCP
+  CORTEX[cortex] --> GW[gateway]
+  MCP[mcp] --> GW
+  RADAR[radar] --> GW
+  VOICE[voice] --> GW
+  GW -->|только health и шина| VOICE
+  CORTEX -->|mcp-клиент| MCP
+  SCRIPTS[scripts] --> RADAR
+  SCRIPTS --> GW
+  SCRIPTS --> MCP
 ```
 
-| Откуда → куда | Сколько импортов | Что именно |
+| Откуда → куда | Импортов | Модули |
 |---|---|---|
 | `voice` → `gateway` | 26 | `access`, `env`, `secret_mask`, `speech_meta`, `quiet_mode`, `stand_watch_keeper` |
 | `cortex` → `gateway` | 10 | `llm_client`, `agent_loop`, `llm_router`, `tool_policy`, `readonly_command`, `text_utils` |
@@ -105,24 +106,24 @@ flowchart LR
 ## Дерево папок
 
 ```
-gateway/            шлюз и всё, что он делает
-  tools/            инструменты модели
-  repos/            доступ к Mongo
-  prompts/          сборка промптов
-  acp/              клиент ACP
-  static/           монитор, каркас, страницы
-voice/layer/        голосовой слой
-  data/voice/bus/   файловая шина (вне git)
-cortex/acp/         свой агент за ACP
-mcp/                MCP-серверы и агрегатор
-radar/              радар присутствия
-  static/           страница радара
-scripts/            скрипты стенда и разовые инструменты
-tests/              тесты
-workflows/          сценарии стенда, файлом
-docker/             образы шлюза, песочницы, файрвола
-docs/               документация
-data/               данные стенда, вне git
+gateway/      шлюз и всё, что он делает
+ tools/      инструменты модели
+ repos/      доступ к Mongo
+ prompts/     сборка промптов
+ acp/       клиент ACP
+ static/      монитор, каркас, страницы
+voice/layer/    голосовой слой
+ data/voice/bus/  файловая шина (вне git)
+cortex/acp/     свой агент за ACP
+mcp/        MCP-серверы и агрегатор
+radar/       радар присутствия
+ static/      страница радара
+scripts/      скрипты стенда и разовые инструменты
+tests/       тесты
+workflows/     сценарии стенда, файлом
+docker/       образы шлюза, песочницы, файрвола
+docs/        документация
+data/        данные стенда, вне git
 ```
 
 Новое кладётся по тому же правилу: логика, которая решает, отдельно от того, что трогает внешний мир; доступ к
