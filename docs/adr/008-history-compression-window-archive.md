@@ -20,7 +20,7 @@
 - пустую сводку отмечает сама модель маркером `SKIP`, без эвристик по словам.
 
 Окно, пороги, шаги прохода и архив - `docs/features/compression.md`; когда проход запускается - ADR-015 и
-`docs/features/memory-in-pauses.md`.
+`docs/features/compression.md`.
 
 ## Рассмотренные варианты
 

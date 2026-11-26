@@ -77,8 +77,6 @@ ADR - решение о дизайне системы: правило или п�
 |---|---|
 | [speech-text](../features/speech-text.md) | тег voice, звенья подготовки речи, что не закрыто |
 | [addressee](../features/addressee.md) | кому сказана фраза: правила кода, окно беседы, набор и точность |
-| [session-queue](../features/session-queue.md) | очередь фраз сессии и управление ею |
-| [memory-in-pauses](../features/memory-in-pauses.md) | ворота простоя, пороги сжатия, извлечение фактов |
 | [compression](../features/compression.md) | сжатие истории: окно в токенах, шаги прохода, архив |
 | [llm-router](../features/llm-router.md) | выбор модели по виду задачи, цепочки, отказы поставщиков |
 | [workers](../features/workers.md) | воркеры: жизнь задачи, инструменты ролей, сроки, пул шагов |
