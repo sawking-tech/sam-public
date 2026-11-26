@@ -1,7 +1,7 @@
 # architecture
 
 Как SAM устроена изнутри. Устройство не зависит от настроек; что включается и настраивается - в
-[features](../features/index.md), запуск и деньги - в [operations](../operations/index.md).
+[features](../features/README.md), запуск и деньги - в [operations](../operations/README.md).
 
 Схемы потоков лежат в самих файлах: [stand.md](stand.md) - кто кого вызывает, [main-model.md](main-model.md) -
 текстовый ход, [agent-loop.md](agent-loop.md) - шина событий и очередь сессии, [workers.md](workers.md) -

@@ -1,7 +1,7 @@
 # features
 
 Что SAM умеет, как включается и какой порог за что отвечает. Устройство - в
-[architecture](../architecture/index.md), деньги и запуск - в [operations](../operations/index.md).
+[architecture](../architecture/README.md), деньги и запуск - в [operations](../operations/README.md).
 
 **[workflows.md](workflows.md)** - проактивность без расписания в коде. Сценарий лежит файлом в `workflows/`,
 повод - расписание или событие шины. Ворота без модели отсеивают почти всё, близкие поводы склеиваются в пачку;
