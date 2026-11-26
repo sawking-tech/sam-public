@@ -69,7 +69,7 @@ client_agent, голос и шлюз (страница приложений `/ap
 - зачем: точка входа SAM - основная модель, история, агенты, память, монитор;
 - что есть: `/health` (`main_model`, `components`: mongo, qdrant, mcp, cortex, `compression` - сжатие истории по сессиям,
   `stand_watch` - последняя отбивка надзора),
-  `/voice/turn`, `/v1/chat/completions`, `/ws/monitor`; остальное - раздел README «REST API»;
+  `/voice/turn`, `/v1/chat/completions`, `/ws/monitor`; остальное - [REST API](../api/rest.md);
 - если упал: вкладка поднимает через 3 с, нет вкладки - надзор через 90 с (блок «Надзор»); слух, озвучка, тикер и сессия работают на шине; `say` пишет реплику в
   шину и одной строкой сообщает, что в монитор и историю она не попала.
 
@@ -137,7 +137,7 @@ client_agent, голос и шлюз (страница приложений `/ap
 - что есть: `remember`, `list_memories`, `update_memory`, `forget` у модели в шлюзе; у Claude Code -
   `memory_search` и `remember` MCP-сервера `sam` (SAM-175, поверх `GET /sam/memory/search?q=&limit=` и
   `POST /sam/memory`);
-- поиск гибридный (SAM-102, README «Поиск по памяти»): слова (BM25 по фактам в Mongo, падежи сводятся к основе) и
+- поиск гибридный (SAM-102, [memory-search.md](../features/memory-search.md)): слова (BM25 по фактам в Mongo, падежи сводятся к основе) и
   вектор (Qdrant), слияние RRF; запрос-имя («Шарик», «партнёр») находит свой факт первым по словам, вектор
   дополняет. Эмбеддер - отдельный процесс `python -m gateway.embedder_service` (вкладка «SAM: Embedder», `:10204`,
   `SAM_EMBEDDER_URL`, SAM-172): модель грузится раз, рестарт шлюза её не трогает. Процесс не ответил - шлюз
