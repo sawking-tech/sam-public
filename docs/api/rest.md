@@ -1,6 +1,6 @@
 # REST API шлюза
 
-Все ручки на одном порту, `:8000`. Ключ и что закрыто без него - `access.md`; ключ привилегий - там же.
+Все ручки на одном порту, `:8000`. Ключ и что закрыто без него - [access](architecture/access/access.md); ключ привилегий - там же.
 
 Полный список ручек - `gateway/main.py`. Ниже главные; остальные ручки сессии (`/sam/session/{id}/...`: отмена хода
 и очереди, правка последних реплик) и радара (`/sam/presence/...`) - в `gateway/main.py` и `radar/presence_api.py`.
@@ -31,7 +31,7 @@
 | GET | `/monitor` | монитор |
 | * | `/apps/{slug}/...` | страница живого приложения с CSP sandbox; по id - 308 на slug |
 | WS | `/ws/monitor` | поток событий монитора |
-| WS | `/voice/turn` | голосовой ход (`../features/speech.md`, ADR-010) |
+| WS | `/voice/turn` | голосовой ход (`../features/voice/speech.md`, ADR-010) |
 
 ## Агент от основной модели вне шлюза
 
@@ -50,7 +50,7 @@ POST /sam/agents {"description": "...", "level": "smart|medium|weak", "tools": [
   `estimate_steps` и `request_steps` есть всегда. Права и метка хранятся в задаче и действуют после воскрешения.
 - `framework` - воркер шлюза или сессия Cortex (по умолчанию `SAM_AGENT_FRAMEWORK`, иначе `sam`). Агенту Cortex
   `tools` обязательны, `peers` - кому он может писать, `depth` - поколений детей, до `SAM_AGENT_MAX_DEPTH`.
-- `steps` - прикидка шагов (`../features/guard.md`, шаги агентов).
+- `steps` - прикидка шагов (`../features/safety/guard.md`, шаги агентов).
 - Ручка требует ключ привилегий `X-SAM-Privilege`.
 - Отказ - код HTTP и одна строка в `detail`: 400 запрос, 429 все `SAM_MAX_WORKERS` заняты, 503 нет MongoDB,
   устройства или модели.

@@ -17,8 +17,8 @@ broadcast (WS) + inject queue»):
 
 | Операция | Что делает | Где |
 |---|---|---|
-| `emit(type, data)` | рассылает подписчикам WebSocket (монитор) и пишет в `sessions` события `user_message`, `assistant_reply`, `assistant_spoken`, `tool_call`, `tool_result` | `event_bus.py:11,77`; `docs/architecture/agent-loop.md`, «Шина и инъекции» |
-| `inject(session, text)` | кладёт сообщение в очередь сессии | `event_bus.py:173`; `docs/architecture/agent-loop.md`, «Шина и инъекции» |
+| `emit(type, data)` | рассылает подписчикам WebSocket (монитор) и пишет в `sessions` события `user_message`, `assistant_reply`, `assistant_spoken`, `tool_call`, `tool_result` | `event_bus.py:11,77`; `docs/architecture/gateway/agent-loop.md`, «Шина и инъекции» |
+| `inject(session, text)` | кладёт сообщение в очередь сессии | `event_bus.py:173`; `docs/architecture/gateway/agent-loop.md`, «Шина и инъекции» |
 | `pop_inject` | `agent_loop` забирает инъекции на каждом шаге | `event_bus.py:179`, `agent_loop.py:182` |
 
 История хранится нейтрально (`role: tool_call`) и форматируется под модель при чтении (README, «Нейтральное

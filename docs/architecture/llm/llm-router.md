@@ -2,7 +2,7 @@
 
 Каждый вызов LLM называет вид задачи; роутер выбирает поставщика по виду и идёт по цепочке запасных, клиент
 помнит отказы поставщиков. Почему так - ADR-002. Кто основная модель SAM (Claude Code или модель шлюза) - отдельный
-выбор, `main-model.md`.
+выбор, [main-model](architecture/gateway/main-model.md).
 
 `gateway/llm_router.py` (`get_best_llm`), `gateway/llm_client.py` (`make_llm_call`), классификация отказов -
 `gateway/provider_transform.py` (`classify_error`).

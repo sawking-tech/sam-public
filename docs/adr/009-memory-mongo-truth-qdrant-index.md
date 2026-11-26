@@ -20,12 +20,12 @@ SAM помнит факты о доме, людях и договорённос�
 - Сбой эмбеддера или размерности - явная ошибка, а не тихий нулевой вектор.
 - Эмбеддер - отдельный долгоживущий процесс, без него - модель в шлюзе (SAM-172).
 
-Запись, шаги поиска, пороги, эмбеддер и обслуживание - `docs/features/memory-search.md`.
+Запись, шаги поиска, пороги, эмбеддер и обслуживание - `docs/features/memory/memory-search.md`.
 
 ## Рассмотренные варианты
 
 **Синхронизация через MongoDB Change Streams.** Отклонена: расхождение Qdrant и Mongo чинит dream-job
-(SAM-22) (`docs/architecture/compression.md`, «Чего не делать»).
+(SAM-22) (`docs/architecture/context/compression.md`, «Чего не делать»).
 
 **Memory MCP от Anthropic (граф сущностей).** Отклонён в SAM-47: Mongo, Qdrant и `related_ids` уже есть,
 граф строится поверх них (SAM-45).

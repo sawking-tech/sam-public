@@ -19,8 +19,8 @@
 - всё удаляемое сначала пишется в `sessions_archive` с причиной и находится поиском;
 - пустую сводку отмечает сама модель маркером `SKIP`, без эвристик по словам.
 
-Окно, пороги, шаги прохода и архив - `docs/architecture/compression.md`; когда проход запускается - ADR-015 и
-`docs/architecture/compression.md`.
+Окно, пороги, шаги прохода и архив - `docs/architecture/context/compression.md`; когда проход запускается - ADR-015 и
+`docs/architecture/context/compression.md`.
 
 ## Рассмотренные варианты
 

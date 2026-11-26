@@ -1,8 +1,8 @@
 # Воркеры: задачи в фоне
 
 Главный агент разговаривает и ставит задачи, действие на устройстве, поиск и код выполняет воркер в фоне, итог
-пересказывает главный. Почему так - ADR-005; агенты в сессиях Cortex, права и каналы - `agents.md` и ADR-022; где что
-на стенде - `stand.md`, блок «Агенты».
+пересказывает главный. Почему так - ADR-005; агенты в сессиях Cortex, права и каналы - [agents](architecture/agents/agents.md) и ADR-022; где что
+на стенде - [stand](architecture/stand/stand.md), блок «Агенты».
 
 `gateway/worker.py`, `gateway/agent.py` (`spawn_agent`, `_run_worker_task`, `_auto_respond`), учёт шагов -
 `gateway/agent_budget.py`.
@@ -48,7 +48,7 @@
 `list_agents`, `send_to_agent`, `cancel_agent`, `grant_steps`), настройка себя и переменных, смена основной модели,
 скиллы, тихий режим, сжатие сессии, `sandbox_exec`. `mcp_call`, `search_web` и
 `claude_delegate` у главного нет. Исключение - `sandbox_exec`: проверка куска кода в тёплом контейнере
-(`sandbox.md`); весь вызов главного вместе с ожиданием замка и стартом контейнера не дольше
+([sandbox](features/execution/sandbox.md)); весь вызов главного вместе с ожиданием замка и стартом контейнера не дольше
 `SAM_FAST_SANDBOX_MAIN_TIMEOUT_S` (10 с), просьба дольше - отказ «отдай воркеру».
 
 ## Жизненный цикл задачи

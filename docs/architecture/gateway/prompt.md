@@ -77,7 +77,7 @@ REST - `gateway/soul_api.py`: `GET /sam/soul`, `GET /sam/soul/{имя}`, `GET /s
 
 ## Что получает ведущий
 
-Сессия Claude Code (`claude-code`) получает роль из `.claude/hooks/lead_brief.py`: роль про среду (носитель, вход,
+Сессия Claude Code (`claude-code`) получает роль из `.claude/hooks/lead_brief.py`: роль про среду (вход,
 выход, инструменты, указатель на `docs/features/`) и промпт `gateway/prompts/lead.py` - те же разделы шлюза
 (характер, тон, слух, время, подтверждение другу дома, устная речь) в роде голоса из `GET /sam/config` (SAM-95).
 Бриф печатается на SessionStart: правку души ведущий получает со следующего старта сессии, а не в идущей.

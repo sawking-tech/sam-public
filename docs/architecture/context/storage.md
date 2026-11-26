@@ -1,7 +1,7 @@
 # Хранилище: MongoDB и Qdrant
 
 MongoDB - источник правды, Qdrant - оглавление к фактам памяти. Коллекции в базе `sam`. Отдельные документы
-памяти и её поиск - `../features/memory-search.md`; здесь схема коллекций.
+памяти и её поиск - `../features/memory/memory-search.md`; здесь схема коллекций.
 
 `gateway/repos/*` - CRUD с зависимостями, в тестах mongomock.
 
