@@ -77,18 +77,18 @@ ADR - решение о дизайне системы: правило или п�
 |---|---|
 | [speech-text](../features/speech-text.md) | тег voice, звенья подготовки речи, что не закрыто |
 | [addressee](../features/addressee.md) | кому сказана фраза: правила кода, окно беседы, набор и точность |
-| [compression](../features/compression.md) | сжатие истории: окно в токенах, шаги прохода, архив |
-| [llm-router](../features/llm-router.md) | выбор модели по виду задачи, цепочки, отказы поставщиков |
-| [workers](../features/workers.md) | воркеры: жизнь задачи, инструменты ролей, сроки, пул шагов |
-| [agent-loop](../features/agent-loop.md) | цикл агента: адаптеры, разбор вызовов из текста, защита от петель |
+| [compression](../architecture/compression.md) | сжатие истории: окно в токенах, шаги прохода, архив |
+| [llm-router](../architecture/llm-router.md) | выбор модели по виду задачи, цепочки, отказы поставщиков |
+| [workers](../architecture/workers.md) | воркеры: жизнь задачи, инструменты ролей, сроки, пул шагов |
+| [agent-loop](../architecture/agent-loop.md) | цикл агента: адаптеры, разбор вызовов из текста, защита от петель |
 | [memory-search](../features/memory-search.md) | долгая память: запись, гибридный поиск, эмбеддер, обслуживание |
 | [fast-voice](../features/fast-voice.md) | быстрый голос: кто отвечает на фразу, проверка и поправка основной, откат, при ведущем |
 | [workflows](../features/workflows.md) | лёгкие workflow стенда, очередь push, подтверждение |
 | [sandbox](../features/sandbox.md) | песочница: изоляция, сеть по запросу, пакеты, файлы внутрь и наружу, быстрая песочница, настройки |
-| [agents](../features/agents.md) | агентная система за ACP: кто ведёт ход, Cortex, агенты Cortex - права, каналы, пределы, Hermes |
+| [agents](../architecture/agents.md) | агентная система за ACP: кто ведёт ход, Cortex, агенты Cortex - права, каналы, пределы, Hermes |
 | [audio-core](../features/audio-core.md), [hearing](../features/hearing.md), [voice-id](../features/voice-id.md), [barge-in](../features/barge-in.md), [speech-out](../features/speech-out.md) | голосовой слой (ADR-011): ядро звука, слух, опознание голоса, перебивание, синтез и очередь реплик |
-| [main-model](../features/main-model.md) | основная модель: конкретные модели, приоритет, Claude Code носителем |
-| [stand](../features/stand.md) | блоки стенда: где, зачем, что есть, если упал |
+| [main-model](../architecture/main-model.md) | основная модель: конкретные модели, приоритет, Claude Code носителем |
+| [stand](../architecture/stand.md) | блоки стенда: где, зачем, что есть, если упал |
 
 Проверены и оставлены задачами:
 
