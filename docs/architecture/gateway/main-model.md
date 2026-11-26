@@ -100,8 +100,18 @@ flowchart TD
 его в истории с пометкой `[текстом в монитор, не голосом]` (`gateway/runner.py`).
 
 Дела SAM сессия делает инструментами MCP-сервера `sam` (`mcp/sam_server.py` поверх REST шлюза, строка в
-локальном `.mcp.json`, в агрегатор стенда не входит): `memory_search`, `remember`, `create_agent`, `answer_agent`,
-`grant_agent_tool`, `push_ack`, `switch_main_model`.
+локальном `.mcp.json`, в агрегатор стенда не входит):
+
+| Инструмент | Что делает |
+|---|---|
+| `memory_search`, `remember` | поиск и запись факта долгой памяти |
+| `create_agent` | агент SAM под задачу, как `spawn_agent` |
+| `answer_agent` | ответ или вводная агенту в сессию `task:<id>` |
+| `grant_agent_tool`, `grant_agent_steps` | инструмент и шаги агенту по его просьбе |
+| `push_ack` | подтверждение сообщений очереди push |
+| `switch_main_model` | смена основной модели или поставщика без рестарта |
+| `sandbox_exec` | кусок кода в тёплом контейнере песочницы |
+| `restart_component` | перезапуск компонента стенда |
 
 ## Модели
 
