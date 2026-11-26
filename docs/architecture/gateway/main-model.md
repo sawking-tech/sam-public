@@ -3,7 +3,7 @@
 Шлюз отдаёт каждый вход - голос, чат монитора, inject - основной модели и не знает, кто за ней. Роль основного
 может играть модель внутри шлюза (`llm`) или сессия Claude Code (`claude-code`); по умолчанию
 `SAM_MAIN_MODELS=claude-code,llm`, и Claude Code тут один из вариантов, а не обязательный путь. Решение -
-[ADR-018](../adr/018-main-model-concrete-models.md). Блоки стенда - [stand](stand.md).
+[ADR-018](../adr/018-main-model-concrete-models.md). Блоки стенда - [stand](architecture/stand/stand.md).
 
 `gateway/main_model.py`, сборка - `gateway/agent.py` (`main_models`):
 
@@ -16,7 +16,7 @@
   приоритету, событие `main_model_switch` уходит в монитор; никто не доступен - ход идёт текущей.
 - Смена без рестарта (SAM-176): `POST /sam/main-model` с `main: claude-code|llm` (инструмент `switch_main_model`
   MCP-сервера `sam`) делает модель текущей и первой, порядок пишется в `SAM_MAIN_MODELS` в `.env`; недоступного
-  ведущего не ставит. Маршрут требует ключа привилегий (`stand.md`, блок «Агенты»).
+  ведущего не ставит. Маршрут требует ключа привилегий ([stand](architecture/stand/stand.md), блок «Агенты»).
 - Ярлык «ведёт» в мониторе и поле `main_model` в `/health` - текущая модель; событие `main_model_turn` - ход,
   отданный модели вне шлюза.
 
@@ -27,7 +27,7 @@
 | `noop` | нет | всегда | никак: ход принят, ответа нет |
 
 Шаг workflow стенда приходит тем же путём с источником `workflow:<имя>/<шаг>`: `claude-code` - строкой в
-`lead-in.jsonl`, `llm` - ходом шлюза (`workflows.md`). Свои реплики SAM (поздний час) делает основная модель, не
+`lead-in.jsonl`, `llm` - ходом шлюза ([workflows](features/automation/workflows.md)). Свои реплики SAM (поздний час) делает основная модель, не
 отдельный вызов LLM роутера.
 
 При `claude-code` голосовой ход шлюза основную модель не зовёт (`gateway/voice_turn.py`). Быстрый голос при
@@ -36,9 +36,9 @@
 поправляет `say --fix`; workflow проверки быстрой (`fast-review`, `fast-action`, `fast-handoff`) при ведущем не идут (`where: {main: llm}`).
 Быстрая не отвечает (холодная сессия или откат по `fast-voice.yml`, `SAM_FAST_WITH_LEAD=0`) - модель шлюза не
 зовётся, отвечает сессия. Поиск по памяти идёт на входе до развилки при любой основной модели (SAM-101,
-`gateway/recall.py`): сессия получает факты полем `facts` в тике `chat` или тиком `rag` к фразе (`stand.md`,
+`gateway/recall.py`): сессия получает факты полем `facts` в тике `chat` или тиком `rag` к фразе ([stand](architecture/stand/stand.md),
 блок «Память»). История сжимается при любой основной модели: сжатие ставит запись реплики в историю,
-а не ход шлюза, сводку пишет модель роутера (SAM-97, `stand.md`, блок «Память»).
+а не ход шлюза, сводку пишет модель роутера (SAM-97, [stand](architecture/stand/stand.md), блок «Память»).
 
 ## Claude Code как основная модель
 
@@ -89,7 +89,7 @@ say-out с `from=haiku` за быструю модель и `from=gateway` за 
 - Из `NO_LIES` и правил tools шлюза Claude Code не получает ничего: они названы через spawn_agent,
   общей формулировки для любой модели пока нет - SAM-95.
 - Запись важного в память по триггеру (просьба «запомни», заметное событие) - SAM-94; раз в полчаса - workflow
-  `memory-review` (`workflows.md`).
+  `memory-review` ([workflows](features/automation/workflows.md)).
 
 ## Текстовый ход
 

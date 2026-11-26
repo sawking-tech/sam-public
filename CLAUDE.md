@@ -90,7 +90,7 @@ SAM (Smart Ambient Mate) - система мониторинга, реагиро
 | `gateway/session_lock.py` | SAM-01: per-session asyncio.Lock + queue accumulation |
 | `gateway/stt_dedup.py` | SAM-32: TF-IDF cosine дедуп STT |
 | `gateway/catalog.py` | MongoDB CRUD: устройства / люди / питомцы |
-| `gateway/household.py`, `gateway/household_api.py` | Состав дома: блок промпта, анкета монитора (`docs/getting-started/household.md`) |
+| `gateway/household.py`, `gateway/household_api.py` | Состав дома: блок промпта, анкета монитора (`docs/features/memory/household.md`) |
 | `gateway/tasks.py` | Task schema, CRUD, TTL индекс |
 | `gateway/worker_session.py` | SAM-38: persistent worker sessions для resume |
 | `gateway/rag.py` | Industrial RAG: multi-facet TOC + HyDE-style + dedup + MMR |

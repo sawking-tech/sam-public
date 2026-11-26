@@ -2,7 +2,7 @@
 
 Шлюз держит агента подпроцессом и говорит с ним по ACP (Agent Client Protocol, JSON-RPC по stdio); свой агент SAM -
 Cortex, внешние (Hermes, OpenCode) подключаются тем же контрактом. Агент SAM для задачи может работать воркером шлюза
-или сессией Cortex с правами, выданными создателем. Почему так - ADR-022; воркер шлюза и пул шагов - `workers.md`.
+или сессией Cortex с правами, выданными создателем. Почему так - ADR-022; воркер шлюза и пул шагов - [workers](architecture/agents/workers.md).
 
 Клиент ACP в шлюзе - `gateway/acp/`, Cortex - `cortex/acp/`, агенты Cortex - `gateway/cortex_workers.py`,
 `cortex/acp/rights.py`, `cortex/acp/channels.py`, инструменты создания - `gateway/tools/agents.py`.
@@ -18,14 +18,14 @@ Cortex, внешние (Hermes, OpenCode) подключаются тем же �
 | поток | `session/update` пересказывается в шину голоса и монитора; `session/request_permission` решает судья SAM |
 | сбой | агент упал - закрытый stdio, ход завершается ошибкой, агент поднимается заново; старт не дольше `SAM_ACP_START_TIMEOUT_S` (60 с) |
 
-В роутере агент за ACP - поставщик `acp` для видов задач `turn` и `fast` (`llm-router.md`).
+В роутере агент за ACP - поставщик `acp` для видов задач `turn` и `fast` ([llm-router](architecture/llm/llm-router.md)).
 
 ## Cortex
 
 | Что | Как |
 |---|---|
 | протокол и инструменты | SDK `agent-client-protocol` (агентская сторона), инструменты - MCP сессии через SDK `mcp`, модель - `llm_client` шлюза задачей `SAM_CORTEX_LLM_TASK` (`default`; сам себя, `acp`, не выбирает) |
-| ход | тот же `agent_loop`, что в шлюзе (`agent-loop.md`); шагов цикла на ход `SAM_CORTEX_MAX_TURNS` (20) |
+| ход | тот же `agent_loop`, что в шлюзе ([agent-loop](architecture/gateway/agent-loop.md)); шагов цикла на ход `SAM_CORTEX_MAX_TURNS` (20) |
 | поток | текст - `agent_message_chunk`, вызов и итог инструмента - `tool_call` и `tool_call_update`; рассуждение в ответ не попадает |
 | разрешения | инструменты, которые меняют машину (`SAM_CORTEX_PERMISSION_TOOLS`: команды, запись файлов, git на запись, код в браузере), и помеченные `destructiveHint` в MCP идут через `session/request_permission`, то есть через судью SAM; чтение, радар и время - без судьи; политика `deny` сильнее всего |
 | подсказка | текст хода от шлюза целиком, сверху короткая рамка Cortex; своей истории у Cortex нет |
@@ -43,12 +43,12 @@ Cortex, внешние (Hermes, OpenCode) подключаются тем же �
 | Что | Как |
 |---|---|
 | права | инструменты выдаёт создатель списком, не шире своих; пустая выдача у Cortex отклоняется (`CORTEX_NEEDS_GRANT`): только каналы связи и `tool_search` - нужно явно; у воркера шлюза пустой список по-прежнему даёт все его инструменты |
-| метка сложности | `smart`, `medium` (по умолчанию), `weak`: источник роутера из `SAM_AGENT_LLM_<МЕТКА>`, пусто - подборщик по задаче ([llm-router](llm-router.md), «Модель под задачу агента») |
+| метка сложности | `smart`, `medium` (по умолчанию), `weak`: источник роутера из `SAM_AGENT_LLM_<МЕТКА>`, пусто - подборщик по задаче ([llm-router](architecture/llm/llm-router.md), «Модель под задачу агента») |
 | каналы | `report_status` и `ask_creator` создателю, `request_permission` (инструмент и зачем), `send_to_agent` - только агентам из `peers` или после выданного права `agent:<id>`; ответ создателя приходит в ход `_sam/inject` |
 | дети | глубина `depth` до `SAM_AGENT_MAX_DEPTH` (1), детей `SAM_AGENT_MAX_CHILDREN` (1); уровень считается от основной модели: её агент создаёт не больше одного агента, тот - ни одного; создав ребёнка, агент теряет `spawn_agent`; шлюз перепроверяет пределы по своей записи задачи |
 | права ребёнка | не шире прав родителя; запрос права ребёнка решает родитель, чего у родителя нет - пересылает выше |
 | жизнь | агент живёт задачу: пока идут дети или ждёт ответ, следующий ход - по сообщению; ходов на задачу `SAM_CORTEX_TASK_TURNS` (10); нет ответа за `SAM_CORTEX_WAIT_S` (600 с) - задача закрывается итогом последнего хода; итог создателю - `[TASK_DONE]` |
-| шаги | пул шагов считает цикл воркера шлюза (`workers.md`); сессию Cortex ограничивают ходы на задачу и шаги цикла на ход |
+| шаги | пул шагов считает цикл воркера шлюза ([workers](architecture/agents/workers.md)); сессию Cortex ограничивают ходы на задачу и шаги цикла на ход |
 | ключ привилегий | `POST /sam/agents`, `/sam/agents/{id}/grant`, `/sam/main-model`, `/sam/llm/switch` требуют `X-SAM-Privilege` и с этой машины (`gateway/privilege_key.py`, SAM-177); ключ в `data/secrets/privilege.key` (`SAM_PRIVILEGE_FILE`) передаёт только MCP `sam` ведущего; инструмент с `privilege.key` в аргументах запрещён политикой (`gateway/tool_policy.json`) |
 
 Агенты основной модели вне шлюза идут от сессии `SAM_AGENT_PARENT_SESSION`.

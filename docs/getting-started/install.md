@@ -13,6 +13,6 @@ pip install -r gateway/requirements.txt
 Монитор - <http://127.0.0.1:8000/monitor>. Проверка: `/health` отдаёт `status`, `main_model`, `components`.
 
 Голос ставится отдельно: `pip install -r voice/requirements.txt`, запуск - `python -m voice.layer.voice` и
-`python -m voice.layer.bridge`. Блоки стенда - [stand](../architecture/stand.md).
+`python -m voice.layer.bridge`. Блоки стенда - [stand](../architecture/stand/stand.md).
 
 Данные лежат вне git: `.env`, папка `data/`, тома Docker.

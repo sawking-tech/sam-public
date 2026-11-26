@@ -1,7 +1,7 @@
 # Стенд SAM
 
 Из чего состоит запущенная SAM: у каждого блока - где он, зачем, что в нём есть и чем получить то же, если он
-упал. Кому отдаётся вход - `main-model.md`. Почему блоки общаются файлами шины - ADR о голосовом слое и шине.
+упал. Кому отдаётся вход - [main-model](architecture/gateway/main-model.md). Почему блоки общаются файлами шины - ADR о голосовом слое и шине.
 
 ## Кто что поднимает
 
@@ -100,7 +100,7 @@ client_agent, голос и шлюз (страница приложений `/ap
 
 - где: вкладка «SAM: Claude Code» (`scripts/sam_lead.ps1`, команда `SAM_LEAD_COMMAND`, по умолчанию `claude`),
   открывается, если `lead.alive` старше 5 с;
-- зачем: основная модель `claude-code` (`main-model.md`);
+- зачем: основная модель `claude-code` ([main-model](architecture/gateway/main-model.md));
 - что есть: живость `python -u scripts/lead_heartbeat.py` (фоном), тикер `python -u -m voice.layer.ticker` под
   Monitor (события `voice`, `chat`, `rag`, `unheard`, `mic`), строки надзора - `tail -F logs/stand_watch.log`, ответ
   `python -m voice.layer.say`; инструменты SAM - MCP-сервер `sam` (`mcp/sam_server.py`, SAM-175) строкой в
@@ -137,7 +137,7 @@ client_agent, голос и шлюз (страница приложений `/ap
 - что есть: `remember`, `list_memories`, `update_memory`, `forget` у модели в шлюзе; у Claude Code -
   `memory_search` и `remember` MCP-сервера `sam` (SAM-175, поверх `GET /sam/memory/search?q=&limit=` и
   `POST /sam/memory`);
-- поиск гибридный (SAM-102, [memory-search.md](../features/memory-search.md)): слова (BM25 по фактам в Mongo, падежи сводятся к основе) и
+- поиск гибридный (SAM-102, [memory-search.md](../features/memory/memory-search.md)): слова (BM25 по фактам в Mongo, падежи сводятся к основе) и
   вектор (Qdrant), слияние RRF; запрос-имя («Шарик», «партнёр») находит свой факт первым по словам, вектор
   дополняет. Эмбеддер - отдельный процесс `python -m gateway.embedder_service` (вкладка «SAM: Embedder», `:10204`,
   `SAM_EMBEDDER_URL`, SAM-172): модель грузится раз, рестарт шлюза её не трогает. Процесс не ответил - шлюз
@@ -250,7 +250,7 @@ claude mcp add --scope project --transport http sam-stand http://localhost:3000/
 ## Workflow стенда
 
 - где: файлы `workflows/*.yml` (`SAM_WORKFLOWS_DIR`), планировщик в процессе шлюза, состояние - MongoDB `_workflows`;
-- зачем: расписание стенда для любой основной модели - поздний час, память раз в полчаса (`workflows.md`);
+- зачем: расписание стенда для любой основной модели - поздний час, память раз в полчаса ([workflows](features/automation/workflows.md));
 - что есть: тик раз в 2 с (`SAM_WORKFLOW_TICK_S`), ворота без LLM, шаг основной модели входом с источником `workflow:<имя>/<шаг>`,
   событие `workflow` в мониторе, `/health` → `workflows`;
 - если упал шлюз: расписание стоит; после подъёма опоздавший до половины периода запуск идёт один раз.
@@ -321,4 +321,4 @@ flowchart LR
 
 Схемы 1-6 - путь модели в шлюзе (`llm`). Схема 1 - текстовый путь `/v1/chat/completions` (`runner.run_turn`);
 голосовой ход идёт через WebSocket `/voice/turn` одним вызовом LLM без guard, критика и повторов, только с
-`spawn_agent` ([speech.md](../features/speech.md)).
+`spawn_agent` ([speech.md](../features/voice/speech.md)).

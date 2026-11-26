@@ -75,20 +75,20 @@ ADR - решение о дизайне системы: правило или п�
 
 | Описание | Что |
 |---|---|
-| [speech-text](../features/speech.md) | тег voice, звенья подготовки речи, что не закрыто |
-| [addressee](../features/addressee.md) | кому сказана фраза: правила кода, окно беседы, набор и точность |
-| [compression](../architecture/compression.md) | сжатие истории: окно в токенах, шаги прохода, архив |
-| [llm-router](../architecture/llm-router.md) | выбор модели по виду задачи, цепочки, отказы поставщиков |
-| [workers](../architecture/workers.md) | воркеры: жизнь задачи, инструменты ролей, сроки, пул шагов |
-| [agent-loop](../architecture/agent-loop.md) | цикл агента: адаптеры, разбор вызовов из текста, защита от петель |
-| [memory-search](../features/memory-search.md) | долгая память: запись, гибридный поиск, эмбеддер, обслуживание |
-| [fast-voice](../features/speech.md) | быстрый голос: кто отвечает на фразу, проверка и поправка основной, откат, при ведущем |
-| [workflows](../features/workflows.md) | лёгкие workflow стенда, очередь push, подтверждение |
-| [sandbox](../features/sandbox.md) | песочница: изоляция, сеть по запросу, пакеты, файлы внутрь и наружу, быстрая песочница, настройки |
-| [agents](../architecture/agents.md) | агентная система за ACP: кто ведёт ход, Cortex, агенты Cortex - права, каналы, пределы, Hermes |
-| [audio-core](../features/voice.md), [hearing](../features/voice.md), [voice-id](../features/voice.md), [barge-in](../features/speech.md), [speech-out](../features/speech.md) | голосовой слой (ADR-011): ядро звука, слух, опознание голоса, перебивание, синтез и очередь реплик |
-| [main-model](../architecture/main-model.md) | основная модель: варианты, приоритет, переключение без рестарта |
-| [stand](../architecture/stand.md) | блоки стенда: где, зачем, что есть, если упал |
+| [speech-text](../features/voice/speech.md) | тег voice, звенья подготовки речи, что не закрыто |
+| [addressee](../features/voice/addressee.md) | кому сказана фраза: правила кода, окно беседы, набор и точность |
+| [compression](../architecture/context/compression.md) | сжатие истории: окно в токенах, шаги прохода, архив |
+| [llm-router](../architecture/llm/llm-router.md) | выбор модели по виду задачи, цепочки, отказы поставщиков |
+| [workers](../architecture/agents/workers.md) | воркеры: жизнь задачи, инструменты ролей, сроки, пул шагов |
+| [agent-loop](../architecture/gateway/agent-loop.md) | цикл агента: адаптеры, разбор вызовов из текста, защита от петель |
+| [memory-search](../features/memory/memory-search.md) | долгая память: запись, гибридный поиск, эмбеддер, обслуживание |
+| [fast-voice](../features/voice/speech.md) | быстрый голос: кто отвечает на фразу, проверка и поправка основной, откат, при ведущем |
+| [workflows](../features/automation/workflows.md) | лёгкие workflow стенда, очередь push, подтверждение |
+| [sandbox](../features/execution/sandbox.md) | песочница: изоляция, сеть по запросу, пакеты, файлы внутрь и наружу, быстрая песочница, настройки |
+| [agents](../architecture/agents/agents.md) | агентная система за ACP: кто ведёт ход, Cortex, агенты Cortex - права, каналы, пределы, Hermes |
+| [audio-core](../features/voice/voice.md), [hearing](../features/voice/voice.md), [voice-id](../features/voice/voice.md), [barge-in](../features/voice/speech.md), [speech-out](../features/voice/speech.md) | голосовой слой (ADR-011): ядро звука, слух, опознание голоса, перебивание, синтез и очередь реплик |
+| [main-model](../architecture/gateway/main-model.md) | основная модель: варианты, приоритет, переключение без рестарта |
+| [stand](../architecture/stand/stand.md) | блоки стенда: где, зачем, что есть, если упал |
 
 Проверены и оставлены задачами:
 
