@@ -17,7 +17,7 @@ SAM управляет компьютерами в доме: окна Windows, �
 heartbeat (`/sam/client/register`, `/sam/client/heartbeat`). Gateway зовёт инструмент вызовом
 `mcp_call(device, tool, args)` через HTTP-клиент `gateway/mcp_client.py`.
 
-| Что | Где | Основание |
+| Решение | Где | Основание |
 |---|---|---|
 | агрегатор вместо mcp-proxy | `mcp/mcp_aggregator.py`, `mcp/client_agent.py` | 9f83553 |
 | вызов одного сервера по очереди, таймаут вызова и очереди по 30 с (`MCP_CALL_TIMEOUT_S`, `MCP_QUEUE_TIMEOUT_S`) | `mcp_aggregator.py:72-118` | код, SAM-76 |

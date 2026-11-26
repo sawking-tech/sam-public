@@ -5,7 +5,7 @@
 
 Что добавляется по сравнению с лёгким:
 
-| Что нужно | Чем берётся |
+| Потребность | Часть SAM |
 |---|---|
 | работа дольше одного вызова модели | агент: `spawn_agent` из хода, `claude_delegate` для кода, дерево агентов за ACP |
 | решить, что делать дальше | шаг модели с инструментами; пул шагов на дерево не даёт агенту крутиться впустую |
@@ -17,8 +17,8 @@
 Агент читает логи, ищет место в коде, правит, прогоняет тесты. Итог возвращается основной модели, та говорит
 человеку и записывает факт в память, чтобы следующий такой сбой узнавать быстрее.
 
-Жизнь задачи и пул шагов — [workers](../architecture/agents/workers.md). Права и каналы агента —
-[agents](../architecture/agents/agents.md). Память — [memory-search](../features/memory/memory-search.md).
+Жизнь задачи и пул шагов — [workers](../architecture/agents/worker.md). Права и каналы агента —
+[agents](../architecture/agents/README.md). Память — [memory-search](../features/memory/memory-search.md).
 Песочница — [sandbox](../features/execution/sandbox.md). Приложения — [apps](../features/execution/apps.md).
 
 Решение об оркестраторе и воркерах — [ADR-005](../adr/005-orchestrator-and-background-workers.md),

@@ -4,10 +4,10 @@
 
 ```bash
 git clone https://github.com/sawking-tech/sam-public.git && cd sam-public
-cp .env.example .env                       # LLM_SOURCE и ключ поставщика
+cp .env.example .env            # LLM_SOURCE и ключ поставщика
 python -m venv .venv && . .venv/bin/activate
 pip install -r gateway/requirements.txt
-./start_sam.sh                             # Windows: .\start_sam.ps1 -NoLead
+./start_sam.sh               # Windows: .\start_sam.ps1 -NoLead
 ```
 
 Монитор - <http://127.0.0.1:8000/monitor>. Проверка: `/health` отдаёт `status`, `main_model`, `components`.
