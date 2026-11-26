@@ -24,7 +24,7 @@
 | Быстрая модель и поправка основной | [fast-voice](features/fast-voice.md) |
 | Кому сказана фраза | [addressee](features/addressee.md) |
 | Память: запись, гибридный поиск, эмбеддер | [memory-search](features/memory-search.md) |
-| Сжатие и память в паузах | [compression](features/compression.md), [memory-in-pauses](features/memory-in-pauses.md) |
+| Сжатие и работа в паузах | [compression](features/compression.md) |
 | Агенты и воркеры | [workers](features/workers.md), [agents](features/agents.md), [agent-loop](features/agent-loop.md) |
 | Guard и пределы агентов | [guard](features/guard.md) |
 | Песочница и живые приложения | [sandbox](features/sandbox.md), [apps](features/apps.md) |

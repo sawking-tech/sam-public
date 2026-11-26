@@ -12,9 +12,7 @@
 | [access](access.md) | доступ к шлюзу: ключ API, ключ привилегий, Host, Origin, Content-Type |
 | [command-secret](command-secret.md) | секрет команд: где звучит, как маскируется, что без него не выполняется |
 | [addressee](addressee.md) | кому сказана фраза: правила кода, окно беседы, набор и точность |
-| [session-queue](session-queue.md) | очередь фраз сессии и управление ею |
 | [speech-text](speech-text.md) | что не звучит (мета-блоки в парных тегах), звенья подготовки речи, что не закрыто |
-| [memory-in-pauses](memory-in-pauses.md) | ворота простоя, пороги сжатия, извлечение фактов |
 | [compression](compression.md) | сжатие истории: окно в токенах, шаги прохода, архив |
 | [memory-search](memory-search.md) | долгая память: запись, гибридный поиск, эмбеддер, обслуживание |
 | [storage](storage.md) | коллекции MongoDB и Qdrant, TTL, что где лежит |
