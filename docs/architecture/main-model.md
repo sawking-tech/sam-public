@@ -89,3 +89,56 @@ say-out с `from=haiku` за быструю модель и `from=gateway` за 
   общей формулировки для любой модели пока нет - SAM-95.
 - Запись важного в память по триггеру (просьба «запомни», заметное событие) - SAM-94; раз в полчаса - workflow
   `memory-review` (`workflows.md`).
+
+## Текстовый ход
+
+Путь `/v1/chat/completions` через очередь сессии, дедуп STT, память и цикл агента.
+
+```mermaid
+sequenceDiagram
+  autonumber
+  participant U as Пользователь
+  participant VC as клиент<br/>(chat.py, voice_client.py)
+  participant GW as gateway/main.py<br/>FastAPI
+  participant SL as session_lock.py<br/>(SAM-01)
+  participant SD as stt_dedup.py<br/>(SAM-32)
+  participant AG as SAMAgentRunner<br/>(главный агент)
+  participant W as _run_worker<br/>(воркер таски)
+  participant DB as MongoDB<br/>sessions / tasks
+  participant Q as Qdrant RAG
+
+  U->>VC: текст ("открой telegram")
+  VC->>GW: POST /v1/chat/completions
+  GW->>SD: deduplicate_stt(text, history)
+  Note over SD: TF-IDF cosine vs последние 20<br/>user-сообщений сессии
+  SD-->>GW: очищенный текст
+  alt текст пустой после дедупа
+    GW-->>VC: пустой ответ (тихо)
+  else есть новое
+    GW->>SL: acquire_and_run(session_id, text, handler)
+    alt сессия занята
+      SL->>SL: queue.append(text)
+      SL-->>GW: "" (UI покажет в очереди)
+    else свободна
+      SL->>AG: run(text)
+      AG->>DB: get_session_history(20)
+      AG->>Q: get_rag_context(text)
+      AG->>AG: _agent_loop (LLM + tools)
+      alt action / поиск (правило из SYSTEM_PROMPT)
+        AG->>W: spawn_agent → asyncio.create_task<br/>(_run_worker_task)
+        W->>Q: RAG по описанию задачи (SAM-02)
+        W->>W: _agent_loop с tools<br/>(search_web, mcp_call, ...)
+        W-->>AG: report_status("ОТВЕТ: ...")
+        AG->>AG: _auto_respond → перефраз<br/>в &lt;voice&gt;...&lt;/voice&gt;
+      else разговорный ≤2 фразы (SAM-35)
+        AG-->>AG: прямой &lt;voice&gt; БЕЗ spawn_agent<br/>1 LLM-вызов вместо 4
+      else action-verb fallback (SAM-07 safety net)
+        AG->>AG: модель забыла spawn_agent →<br/>второй turn форсит задачу,<br/>вступление озвучивается
+      end
+      AG-->>SL: voice-ответ
+      SL->>SL: пока в queue что-то есть - склеить<br/>и обработать
+      SL-->>GW: финальный voice
+    end
+    GW-->>VC: response
+  end
+```

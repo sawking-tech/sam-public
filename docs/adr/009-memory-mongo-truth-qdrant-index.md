@@ -25,7 +25,7 @@ SAM помнит факты о доме, людях и договорённос�
 ## Рассмотренные варианты
 
 **Синхронизация через MongoDB Change Streams.** Отклонена: расхождение Qdrant и Mongo чинит dream-job
-(SAM-22) (`docs/architecture.md`, «Что НЕ трогать»).
+(SAM-22) (`docs/architecture/compression.md`, «Чего не делать»).
 
 **Memory MCP от Anthropic (граф сущностей).** Отклонён в SAM-47: Mongo, Qdrant и `related_ids` уже есть,
 граф строится поверх них (SAM-45).

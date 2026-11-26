@@ -115,8 +115,8 @@ client_agent, голос и шлюз (страница приложений `/ap
 - зачем: действие на устройстве, поиск, код - в фоне, пока SAM разговаривает (ADR-005);
 - что есть: у модели в шлюзе - `spawn_agent`, `list_agents`, `send_to_agent`, `cancel_agent`, итог `[TASK_DONE]`;
   у основной модели вне шлюза - `create_agent` и `answer_agent` MCP-сервера `sam` (поверх `POST /sam/agents` и
-  `POST /sam/inject`), вопрос агента и итог приходят тиком `chat` с `session: task:<id>` (README, «Агенты основной
-  модели»);
+  `POST /sam/inject`), вопрос агента и итог приходят тиком `chat` с `session: task:<id>`
+  ([REST API](../api/rest.md), «Агент от основной модели вне шлюза»);
 - шаги: шаг - одно обращение агента к модели; пул на дерево агентов - меньшая из прикидки создателя (`steps`) и
   оценки агента в первом ответе (`estimate_steps`), по умолчанию `SAM_AGENT_STEPS` (30), потолок
   `SAM_AGENT_STEPS_CAP` (100); пул ребёнка вычитается из пула родителя, не хватило - `request_steps`, создатель
@@ -260,3 +260,65 @@ claude mcp add --scope project --transport http sam-stand http://localhost:3000/
 - где: `:5678`, контейнер dev-compose;
 - зачем: большие сценарии;
 - лёгкие workflow по файлу, как GitHub Actions, идут в шлюзе (блок «Workflow стенда»).
+
+## Потоки
+
+Кто кого вызывает и через что: HTTP, WebSocket, файлы шины, MongoDB. Пунктир - проверка состояния.
+
+```mermaid
+flowchart LR
+  subgraph VOICE[voice.layer.voice - вкладка start_sam]
+    HEAR[слух: AEC, Whisper, опознание]
+    SAYO[озвучка say_out]
+    HUB[узел звука TCP :10210]
+  end
+  subgraph BUS[шина data/voice/bus]
+    VIN[(voice-in.jsonl)]
+    SOUT[(say-out.jsonl)]
+    SAID[(said.jsonl)]
+    LIN[(lead-in.jsonl)]
+    ALIVE[(lead.alive)]
+  end
+  TTS[Silero :10202]
+  BR[мост voice.layer.bridge]
+  TK[тикер voice.layer.ticker]
+  CC[сессия Claude Code]
+  HB[lead_heartbeat.py]
+  SW[stand_watch.py]
+  MON[монитор /monitor]
+  subgraph GW[шлюз :8000]
+    VT["WS /voice/turn"]
+    MM{основная модель<br/>SAM_MAIN_MODELS}
+    LLM[llm: voice_turn, runner,<br/>agent_loop]
+    WK[агенты SAM, воркеры]
+  end
+  MCP[MCP :3000/mcp]
+  DB[(MongoDB :27017<br/>Qdrant :6333)]
+
+  HEAR --> VIN
+  VIN --> BR -->|WS| VT --> MM
+  MM -->|llm| LLM --> WK
+  MM -->|"claude-code: deliver"| LIN
+  VIN --> TK
+  LIN --> TK -->|"тики stdout, Monitor"| CC
+  HB --> ALIVE -.->|доступность claude-code| MM
+  CC -->|say| SOUT
+  CC -->|"POST reply, agents, inject"| GW
+  CC -->|"MCP, ADR-019"| MCP
+  VT -->|delta| BR --> SOUT
+  SOUT --> SAYO --> TTS
+  SAYO --> SAID --> BR -->|spoken| VT
+  MON <-->|"WS /ws/monitor"| GW
+  WK -->|mcp_call| MCP
+  GW --> DB
+  SW -.->|"/health, процессы"| GW
+  SW -.-> MCP
+```
+
+`start_sam.ps1` поднимает Docker, Silero, MCP, client_agent, голос и шлюз вкладками с автоподъёмом, затем мост и
+вкладку сессии (`scripts/sam_lead.ps1`, если `lead.alive` старше 5 с). Живость, тикер и надзор сессия поднимает
+сама по SessionStart-брифу.
+
+Схемы 1-6 - путь модели в шлюзе (`llm`). Схема 1 - текстовый путь `/v1/chat/completions` (`runner.run_turn`);
+голосовой ход идёт через WebSocket `/voice/turn` одним вызовом LLM без guard, критика и повторов, только с
+`spawn_agent` ([speech.md](../features/speech.md)).

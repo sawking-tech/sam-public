@@ -279,3 +279,50 @@ LM Studio (`SAM_SERVICE_LLM_SOURCE`, `SAM_SERVICE_LLM_MODEL`), иначе осн
 
 - Отмена начатого сжатия новой фразой и состояние сжатия в Mongo: флаг и хэш - в памяти процесса (ADR-015).
 - Сбой каскада после удачного сжатия сообщений - сбой всего прохода: сессия ждёт `SAM_COMPRESS_FAIL_RETRY_S`.
+
+## Схема прохода
+
+Окно, сводки, архив и слияние соседних сводок.
+
+Модель: **скользящее окно забывания с каскадной агрегацией.** Сырое
+сообщение → архив навсегда → level-1 summary → level-2 → ... Активная
+память (`db.sessions`) ограничена константами, но любое удалённое
+сообщение можно найти и восстановить из архива.
+
+```mermaid
+flowchart TD
+  MSG[Новое сообщение] --> SAVE[event_bus persist<br/>→ db.sessions]
+  SAVE --> CHK{за окном сырых<br/>≥ 4 сообщ или ≥ 250 токенов?}
+  CHK -- нет --> END[Ответ агента сразу]
+  CHK -- да --> BG[schedule_background_compression<br/>asyncio.create_task<br/>НЕ блокирует ответ]
+  END --> RESPONSE[Ответ пользователю]
+  BG -.фон.-> DEDUP
+
+  subgraph CMP[compress_session_history фоновая]
+    DEDUP[_dedupe_recent_messages<br/>TF-IDF cosine соседей того же role<br/>≥0.75 → удалить старший]
+    DEDUP --> ARCHIVE1[(sessions_archive<br/>reason=dedup_recent)]
+    DEDUP --> SPLIT[окно = последние до 600 токенов,<br/>не больше 20 и не меньше 2 сообщ<br/>to_compress = всё за окном, одним проходом]
+
+    SPLIT --> ARCHIVE2[(archive<br/>reason=compressed)]
+    SPLIT --> WIN[куски до 1500 токенов,<br/>не меньше 4 сообщ]
+    WIN --> SUMM[_summarize_chunk<br/>BASE prompt для 1-го чанка<br/>DIFF prompt для следующих<br/>привычки/договорённости → ВАЖНО<br/>что ел во вторник → забыть]
+    SUMM --> L1[role=summary level=1<br/>первое сообщ чанка ←]
+
+    L1 --> RECUR{level-1<br/>≥6?}
+    RECUR -- да --> ARCHIVE3[(archive<br/>reason=recursive_merge)]
+    RECUR --> MERGE[слить старые level-1<br/>→ level-2 summary]
+  end
+
+  ARCHIVE1 --> ARC[(MongoDB<br/>sessions_archive<br/>text-index по content)]
+  ARCHIVE2 --> ARC
+  ARCHIVE3 --> ARC
+  ARC --> SEARCH[GET /sam/archive/search<br/>?q=кофе&session=...]
+```
+
+**Принципы:**
+- Ничего не удаляется без архивирования: `_archive_messages` - всегда первый шаг.
+- Компрессия идёт в фоне (`asyncio.create_task`, флаг `_compress_in_progress`).
+- Дедуп стоит до суммаризации, чтобы сводка не закрепила повторы.
+- Промпт суммаризации различает вечные факты и эпизод.
+- Слияние рекурсивное: даже многомесячная сессия не растёт линейно.
+- Полнотекстовый поиск с русским text-index находит оригинал любого удалённого сообщения.
